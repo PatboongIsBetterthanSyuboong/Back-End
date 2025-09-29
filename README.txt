@@ -11,6 +11,7 @@ Gradle로 필요한 implementation 버전에 맞춰 명시해주면 나중에 �
 
 윈도우 빌드 명령어 : ./gradlew clean build
 윈도우 스프링부트 실행 명령어 : gradlew.bat bootRun
+맥 스프링부트 실행 명령어 : ./gradlew bootRun
 (인텔리제이 사용하시면 더 편할지도..)
 
 의존성 목록(build.gradle에 dependencies 에 기재되어있고, 빌드하실 때 해당 패키지가 설치된다고 생각하시면 편합니다. 당연히 우리끼리 통일해놔야해용)

@@ -35,7 +35,9 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("Username already exists");
         }
         employee.setName(userRegisterDTO.getName());
-        employee.setDeptId(userRegisterDTO.getDeptId());
+        int requestedDeptId = userRegisterDTO.getDeptId();
+        int defaultDeptId = 1; // 더미 부서 ID
+        employee.setDeptId(requestedDeptId > 0 ? requestedDeptId : defaultDeptId);
         employee.setRole(userRegisterDTO.getRole());
         employee.setUsername(userRegisterDTO.getUsername());
         // 비밀번호 암호화 (SecurityConfig에서 정의한 PasswordEncoder 사용)

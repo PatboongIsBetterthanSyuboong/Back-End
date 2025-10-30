@@ -1,8 +1,8 @@
 
 SpringBoot : 3.5.6
 build: Gradle-Groovy
-JDK: JDK 17.0.16
-Java: 17
+JDK: JDK 23.0.1
+Java: 23
 Packaging: Jar
 
 가상환경 설정 불필요

@@ -1,15 +1,20 @@
 package com.example.bitcomputer.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Data
 public class WaitingDTO {
     int id;
     int patientId;
-    int deptId;
+    // 생략
+    // int deptId; 
     String symptom;
-    Date entryDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    LocalDateTime entryDate;
     String state;
 }

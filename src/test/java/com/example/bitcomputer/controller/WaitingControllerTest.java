@@ -161,6 +161,14 @@ class WaitingControllerTest {
                     .andExpect(jsonPath("$.accessToken").value("ok"))
                     .andExpect(jsonPath("$.refreshToken").value("r"));
         }
+
+        @Test
+        @DisplayName("서비스가 null 반환 시 401 Unauthorized")
+        void update_unauthorized_whenServiceReturnsNull() throws Exception {
+            when(waitingService.updateWaitingState(Mockito.eq(2))).thenReturn(null);
+            mockMvc.perform(put("/api/waiting/2/complete"))
+                    .andExpect(status().isUnauthorized());
+        }
     }
 }
 

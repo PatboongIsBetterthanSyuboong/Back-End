@@ -26,7 +26,7 @@ public class PatientServiceImpl implements PatientService {
     public PatientDTO createPatient(PatientDTO request) {
         validateRequest(request);
 
-        if (patientRepository.existsByIdentityNumber(request.getIdentityNumber())) {
+        if (patientRepository.existsById(request.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 환자입니다.");
         }
 
@@ -40,6 +40,22 @@ public class PatientServiceImpl implements PatientService {
         Patient saved = patientRepository.save(patient);
 
         return mapToDto(saved);
+    }
+
+    @Override
+    public PatientDTO searchPatientById(int id) {
+        Patient patient = patientRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Patient not found with id " + id));
+        return mapToDto(patient);
+    }
+
+    @Override
+    public PatientDTO searchPatientByIdentityNumber(String identityNumber) {
+        if (!patientRepository.existsByIdentityNumber(identityNumber)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Patient not found with identityNumber " + identityNumber);
+        }
+        Patient patient = patientRepository.findByIdentityNumber(identityNumber);
+        return mapToDto(patient);
     }
 
     private void validateRequest(PatientDTO request) {

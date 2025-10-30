@@ -7,7 +7,7 @@ import java.util.Date;
 
 @Data
 public class PatientDTO {
-    Integer id;
+    int id;
     String name;
     String phoneNumber;
     String identityNumber;

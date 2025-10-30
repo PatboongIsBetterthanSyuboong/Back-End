@@ -6,6 +6,7 @@ import com.example.bitcomputer.entity.History;
 import com.example.bitcomputer.entity.Patient;
 import com.example.bitcomputer.model.HistoryDTO;
 import com.example.bitcomputer.model.PatientDTO;
+import com.example.bitcomputer.model.WriteHistoryDTO;
 import com.example.bitcomputer.service.HistoryService;
 import org.springframework.stereotype.Service;
 
@@ -93,30 +94,46 @@ public class HistoryServiceImpl implements HistoryService {
         return dto;
     }
 
+    //Description: 로그인한 직원이 조건에 따라 환자의 진료 기록을 검색. 검색 성공 시, 조건에 맞는 진료 기록 목록을 반환.
     @Override
     public Map<String, Object> searchHistory(int patientId, Date startDate, Date endDate) {
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new EntityNotFoundException("Patient not found with id " + patientId));
 
-        LocalDateTime start = convertToStartOfDay(startDate);
-        LocalDateTime end = convertToEndOfDay(endDate);
+        List<History> histories = historyRepository.searchHistories(patientId, convertToLocalDateTime(startDate), convertToLocalDateTime(endDate));
 
-        List<History> histories = historyRepository.searchHistories(patientId, start, end);
-
-        PatientDTO patientDto = mapPatientToDto(patient);
-
-        Map<String, Object> response = new java.util.HashMap<>();
-        response.put("id", patientDto.getId());
-        response.put("name", patientDto.getName());
-        response.put("phoneNumber", patientDto.getPhoneNumber());
-        response.put("identityNumber", patientDto.getIdentityNumber());
-        response.put("birth", patientDto.getBirth());
-        response.put("gender", patientDto.getGender());
-        response.put("histories", histories.stream()
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("patientId", patient.getId());
+        result.put("histories", histories.stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList()));
+        return result;
+    }   
 
-        return response;
+    @Override
+    public HistoryDTO writeHistory(WriteHistoryDTO request) {
+        History history = new History();
+        history.setEmployeeId(request.getEmployeeId());
+        history.setPatientId(request.getPatientId());
+        history.setDeptId(request.getDeptId());
+        history.setSymptomDetail(request.getSymptomDetail());
+        history.setMemo(request.getMemo());
+        history.setEntryDate(convertToLocalDateTime(request.getEntryDate()));
+
+        return mapToDto(historyRepository.save(history));
+    }
+
+    @Override
+    public HistoryDTO updateHistory(int id, WriteHistoryDTO request) {
+        History history = historyRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("History not found with id " + id));
+        history.setEmployeeId(request.getEmployeeId());
+        history.setPatientId(request.getPatientId());
+        history.setDeptId(request.getDeptId());
+        history.setSymptomDetail(request.getSymptomDetail());
+        history.setMemo(request.getMemo());
+        history.setEntryDate(convertToLocalDateTime(request.getEntryDate()));
+        return mapToDto(historyRepository.save(history));
     }
 
     private LocalDateTime convertToLocalDateTime(Date entryDate) {

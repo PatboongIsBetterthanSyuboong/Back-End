@@ -41,10 +41,11 @@ class PatientServiceImplTest {
     @DisplayName("createPatient")
     class Create {
         @Test
-        @DisplayName("중복 주민번호면 409")
+        @DisplayName("중복 ID면 409")
         void duplicate_identity() {
-            when(patientRepository.existsByIdentityNumber(eq("900101-1234567"))).thenReturn(true);
+            when(patientRepository.existsById(eq(1))).thenReturn(true);
             PatientDTO d = valid();
+            d.setId(1);
             assertThatThrownBy(() -> patientService.createPatient(d))
                     .isInstanceOf(ResponseStatusException.class)
                     .extracting("statusCode")
@@ -66,12 +67,36 @@ class PatientServiceImplTest {
         @Test
         @DisplayName("정상 생성 시 저장/매핑 확인")
         void create_success() {
-            when(patientRepository.existsByIdentityNumber(anyString())).thenReturn(false);
+            when(patientRepository.existsById(anyInt())).thenReturn(false);
             Patient saved = new Patient();
             saved.setId(10);
             when(patientRepository.save(any(Patient.class))).thenReturn(saved);
             PatientDTO res = patientService.createPatient(valid());
             assertThat(res.getId()).isEqualTo(10);
+        }
+    }
+
+    @Nested
+    @DisplayName("searchPatientById")
+    class SearchById {
+        @Test
+        @DisplayName("존재하지 않으면 404")
+        void not_found() {
+            when(patientRepository.findById(eq(99))).thenReturn(java.util.Optional.empty());
+            assertThatThrownBy(() -> patientService.searchPatientById(99))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .extracting("statusCode")
+                    .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(HttpStatus.class))
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("존재하면 DTO 반환")
+        void success() {
+            Patient p = new Patient(); p.setId(5); p.setName("n");
+            when(patientRepository.findById(eq(5))).thenReturn(java.util.Optional.of(p));
+            PatientDTO res = patientService.searchPatientById(5);
+            assertThat(res.getId()).isEqualTo(5);
         }
     }
 }

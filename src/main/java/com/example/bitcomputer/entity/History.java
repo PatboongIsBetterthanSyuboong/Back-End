@@ -32,9 +32,6 @@ public class History {
     @Column(name = "memo", columnDefinition = "TEXT")
     private String memo;
     
-    @Column(name = "entry_date", nullable = false)
-    private LocalDateTime entryDate;
-    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", insertable = false, updatable = false)
     private Employee employee;
@@ -46,4 +43,7 @@ public class History {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dept_id", insertable = false, updatable = false)
     private Dept dept;
+
+    @Column(name = "entry_date", nullable = false)
+    private LocalDateTime entryDate;
 }

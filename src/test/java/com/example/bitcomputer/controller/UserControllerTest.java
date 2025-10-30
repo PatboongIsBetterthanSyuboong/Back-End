@@ -116,5 +116,14 @@ class UserControllerTest {
                             .header("Authorization", "Bearer token"))
                     .andExpect(status().isOk());
         }
+
+        @Test
+        @DisplayName("유효하지 않은 토큰이면 401")
+        void logout_invalid_token_unauthorized() throws Exception {
+            when(jwtTokenProvider.validateToken(eq("bad"))).thenReturn(false);
+            mockMvc.perform(post("/api/user/logout")
+                            .header("Authorization", "Bearer bad"))
+                    .andExpect(status().isUnauthorized());
+        }
     }
 }

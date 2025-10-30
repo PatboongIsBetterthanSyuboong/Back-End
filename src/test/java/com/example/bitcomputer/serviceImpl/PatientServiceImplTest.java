@@ -75,4 +75,28 @@ class PatientServiceImplTest {
             assertThat(res.getId()).isEqualTo(10);
         }
     }
+
+    @Nested
+    @DisplayName("searchPatientById")
+    class SearchById {
+        @Test
+        @DisplayName("존재하지 않으면 404")
+        void not_found() {
+            when(patientRepository.findById(eq(99))).thenReturn(java.util.Optional.empty());
+            assertThatThrownBy(() -> patientService.searchPatientById(99))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .extracting("statusCode")
+                    .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(HttpStatus.class))
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("존재하면 DTO 반환")
+        void success() {
+            Patient p = new Patient(); p.setId(5); p.setName("n");
+            when(patientRepository.findById(eq(5))).thenReturn(java.util.Optional.of(p));
+            PatientDTO res = patientService.searchPatientById(5);
+            assertThat(res.getId()).isEqualTo(5);
+        }
+    }
 }

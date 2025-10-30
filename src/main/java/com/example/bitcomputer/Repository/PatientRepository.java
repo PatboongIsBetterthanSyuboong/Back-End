@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PatientRepository extends JpaRepository<Patient, Integer> {
-    boolean existsByIdentityNumber(String identityNumber);
+    boolean existsById(String id);
+    Patient findById(String id);
 }
 

@@ -1,18 +1,19 @@
 package com.example.bitcomputer.model;
 
+
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.util.Date;
 
 @Data
-public class PatientDTO {
-    int id;
-    String name;
-    String phoneNumber;
-    String identityNumber;
+public class WriteHistoryDTO {
+    int employeeId;
+    int patientId;
+    int deptId;
+    String symptomDetail;
+    String memo;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
-    Date birth;
-    String gender;
+    Date entryDate;
 }

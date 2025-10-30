@@ -55,3 +55,10 @@ generateJava {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+// Disable Test AOT tasks to avoid AOT code generation for tests
+tasks.matching { it.name in [
+        'processTestAot',
+        'compileTestAotJava',
+        'testAot'
+] }.configureEach { it.enabled = false }

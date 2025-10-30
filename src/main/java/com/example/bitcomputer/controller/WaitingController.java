@@ -62,7 +62,7 @@ public class WaitingController {
     }
 
     @PutMapping("{patientid}/complete")
-    public ResponseEntity<TokenInfo> updateWaitingState(@PathVariable("patiendId") int patientid) {
+    public ResponseEntity<TokenInfo> updateWaitingState(@PathVariable("patientid") int patientid) {
         try {
             // 필수 필드 검증
             if (patientid <= 0) {

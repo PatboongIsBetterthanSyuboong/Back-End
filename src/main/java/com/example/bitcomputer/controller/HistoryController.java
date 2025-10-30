@@ -39,6 +39,7 @@ public class HistoryController {
         return ResponseEntity.ok(updated);
     }
 
+    //Description: 로그인한 직원이 조건에 따라 환자의 진료 기록을 검색. 검색 성공 시, 조건에 맞는 진료 기록 목록을 반환.
     @GetMapping("/search_history/{id}")
     public ResponseEntity<Map<String, Object>> searchHistory(
             @PathVariable("id") int employeeId,

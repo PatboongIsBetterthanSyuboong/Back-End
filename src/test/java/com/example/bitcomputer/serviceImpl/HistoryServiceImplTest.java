@@ -5,6 +5,7 @@ import com.example.bitcomputer.Repository.PatientRepository;
 import com.example.bitcomputer.entity.History;
 import com.example.bitcomputer.entity.Patient;
 import com.example.bitcomputer.model.HistoryDTO;
+import com.example.bitcomputer.model.WriteHistoryDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -76,6 +77,54 @@ class HistoryServiceImplTest {
     }
 
     @Nested
+    @DisplayName("searchHistory(id)")
+    class SearchById {
+        @Test
+        @DisplayName("환자/진료 기록 모두 존재 시 DTO 반환")
+        void success() {
+            com.example.bitcomputer.entity.Patient p = new com.example.bitcomputer.entity.Patient(); p.setId(10);
+            when(patientRepository.findById(eq(10))).thenReturn(java.util.Optional.of(p));
+            History h = new History(); h.setId(10);
+            when(historyRepository.findById(eq(10))).thenReturn(java.util.Optional.of(h));
+            java.util.Map<String, Object> res = historyService.searchHistory(10, null, null);
+            assertThat(res).containsKeys("histories");
+        }
+
+        @Test
+        @DisplayName("환자 없으면 예외")
+        void no_patient() {
+            when(patientRepository.findById(eq(9))).thenReturn(java.util.Optional.empty());
+            assertThatThrownBy(() -> historyService.searchHistory(9, null, null))
+                    .isInstanceOf(jakarta.persistence.EntityNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("writeHistory(WriteHistoryDTO)")
+    class WriteWithWriteDto {
+        @Test
+        @DisplayName("매핑 후 저장, DTO 반환")
+        void success() {
+            when(historyRepository.save(any(History.class))).thenAnswer(i -> { History hh = i.getArgument(0); hh.setId(1); return hh;});
+            WriteHistoryDTO req = new WriteHistoryDTO();
+            req.setEmployeeId(1); req.setPatientId(2); req.setDeptId(3);
+            HistoryDTO res = historyService.writeHistory(req);
+            assertThat(res.getId()).isEqualTo(1);
+        }
+    }
+
+    @Nested
+    @DisplayName("updateHistory(id, WriteHistoryDTO)")
+    class UpdateWithWriteDto {
+        @Test
+        @DisplayName("기록 없으면 예외")
+        void not_found() {
+            when(historyRepository.findById(eq(100))).thenReturn(java.util.Optional.empty());
+            assertThatThrownBy(() -> historyService.updateHistory(100, new WriteHistoryDTO()))
+                    .isInstanceOf(jakarta.persistence.EntityNotFoundException.class);
+        }
+    }
+    @Nested
     @DisplayName("searchHistory")
     class Search {
         @Test
@@ -94,7 +143,7 @@ class HistoryServiceImplTest {
             when(historyRepository.searchHistories(eq(2), any(LocalDateTime.class), any(LocalDateTime.class)))
                     .thenReturn(Collections.emptyList());
             var res = historyService.searchHistory(2, new Date(), new Date());
-            assertThat(res).containsKeys("id", "histories");
+            assertThat(res).containsKeys("patientId", "histories");
         }
     }
 }

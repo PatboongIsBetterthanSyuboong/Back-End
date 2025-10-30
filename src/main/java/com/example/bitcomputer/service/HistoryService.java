@@ -11,8 +11,7 @@ public interface HistoryService {
 
     HistoryDTO updateHistory(int id, HistoryDTO request);
 
-    //HistoryDTO searchHistory(int patientId, Date startDate, Date endDate);
-    HistoryDTO searchHistory(int id);
+    Map<String, Object> searchHistory(int patientId, Date startDate, Date endDate);
 
     HistoryDTO writeHistory(WriteHistoryDTO request);
 

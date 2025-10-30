@@ -13,6 +13,8 @@ public class HistoryDTO {
     Integer deptId;
     String symptomDetail;
     String memo;
+    Date startDate;
+    Date endDate;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     Date entryDate;

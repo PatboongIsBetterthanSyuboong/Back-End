@@ -49,6 +49,15 @@ public class PatientServiceImpl implements PatientService {
         return mapToDto(patient);
     }
 
+    @Override
+    public PatientDTO searchPatientByIdentityNumber(String identityNumber) {
+        if (!patientRepository.existsByIdentityNumber(identityNumber)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Patient not found with identityNumber " + identityNumber);
+        }
+        Patient patient = patientRepository.findByIdentityNumber(identityNumber);
+        return mapToDto(patient);
+    }
+
     private void validateRequest(PatientDTO request) {
         if (request == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "요청 본문이 필요합니다.");

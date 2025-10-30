@@ -94,16 +94,21 @@ public class HistoryServiceImpl implements HistoryService {
         return dto;
     }
 
+    //Description: 로그인한 직원이 조건에 따라 환자의 진료 기록을 검색. 검색 성공 시, 조건에 맞는 진료 기록 목록을 반환.
     @Override
-    public HistoryDTO searchHistory(int id) {
-        Patient patient = patientRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Patient not found with id " + id));
+    public Map<String, Object> searchHistory(int patientId, Date startDate, Date endDate) {
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new EntityNotFoundException("Patient not found with id " + patientId));
 
-        History history = historyRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("History not found with id " + id));
+        List<History> histories = historyRepository.searchHistories(patientId, convertToLocalDateTime(startDate), convertToLocalDateTime(endDate));
 
-        return mapToDto(history);
-    }
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("patientId", patient.getId());
+        result.put("histories", histories.stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList()));
+        return result;
+    }   
 
     @Override
     public HistoryDTO writeHistory(WriteHistoryDTO request) {

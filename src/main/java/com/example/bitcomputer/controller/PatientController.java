@@ -8,8 +8,11 @@ import com.example.bitcomputer.service.PatientService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.util.Map;
+import java.time.LocalDate;
+import java.util.Date;
 
 @RestController
 @RequestMapping("/api/patients")
@@ -31,9 +34,16 @@ public class PatientController {
     }
 
     @PostMapping("/search_history/{id}")
-    public ResponseEntity<HistoryDTO> searchHistory(@PathVariable int id) {
-        HistoryDTO history = historyService.searchHistory(id);
-        return ResponseEntity.ok(history);
+    public ResponseEntity<Map<String, Object>> searchHistory(@PathVariable int employeeId, 
+    @RequestParam("patientId") int patientId, 
+    @RequestParam(value = "startDate", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate, 
+    @RequestParam(value = "endDate", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        if (startDate != null && endDate != null && startDate.after(endDate)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Map<String, Object> response = historyService.searchHistory(patientId, startDate, endDate);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/search_patient/{id}")

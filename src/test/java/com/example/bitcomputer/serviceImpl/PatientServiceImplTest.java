@@ -41,10 +41,11 @@ class PatientServiceImplTest {
     @DisplayName("createPatient")
     class Create {
         @Test
-        @DisplayName("중복 주민번호면 409")
+        @DisplayName("중복 ID면 409")
         void duplicate_identity() {
-            when(patientRepository.existsByIdentityNumber(eq("900101-1234567"))).thenReturn(true);
+            when(patientRepository.existsById(eq(1))).thenReturn(true);
             PatientDTO d = valid();
+            d.setId(1);
             assertThatThrownBy(() -> patientService.createPatient(d))
                     .isInstanceOf(ResponseStatusException.class)
                     .extracting("statusCode")
@@ -66,7 +67,7 @@ class PatientServiceImplTest {
         @Test
         @DisplayName("정상 생성 시 저장/매핑 확인")
         void create_success() {
-            when(patientRepository.existsByIdentityNumber(anyString())).thenReturn(false);
+            when(patientRepository.existsById(anyInt())).thenReturn(false);
             Patient saved = new Patient();
             saved.setId(10);
             when(patientRepository.save(any(Patient.class))).thenReturn(saved);

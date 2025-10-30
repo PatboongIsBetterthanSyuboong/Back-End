@@ -101,12 +101,12 @@ class HistoryControllerTest {
         @DisplayName("정상 조회 시 200 OK + Map 반환")
         void search_success() throws Exception {
             when(historyService.searchHistory(eq(2), any(), any()))
-                    .thenReturn(Map.of("id", 2, "histories", java.util.List.of()));
+                    .thenReturn(Map.of("patientId", 2, "histories", java.util.List.of()));
 
             mockMvc.perform(get("/api/patients/search_history/1")
                             .param("patientId", "2"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.id").value(2));
+                    .andExpect(jsonPath("$.patientId").value(2));
         }
     }
 }

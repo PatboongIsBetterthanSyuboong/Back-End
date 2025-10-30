@@ -5,5 +5,6 @@ import com.example.bitcomputer.model.PatientDTO;
 public interface PatientService {
     PatientDTO createPatient(PatientDTO request);
     PatientDTO searchPatientById(int id);
+    PatientDTO searchPatientByIdentityNumber(String identityNumber);
 }
 

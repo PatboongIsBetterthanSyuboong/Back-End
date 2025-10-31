@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.util.Map;
-import java.time.LocalDate;
 import java.util.Date;
 
 @RestController
@@ -52,18 +51,10 @@ public class PatientController {
         return ResponseEntity.ok(patient);
     }
 
-    @PostMapping("/write_history")
-    public ResponseEntity<HistoryDTO> writeHistory(@RequestBody WriteHistoryDTO request) {
-        HistoryDTO history = historyService.writeHistory(request);
-        return ResponseEntity.ok(history);
-    }
-
     @PostMapping("/update_history/{id}")
     public ResponseEntity<HistoryDTO> updateHistory(@PathVariable int id, @RequestBody WriteHistoryDTO request) {
         HistoryDTO history = historyService.updateHistory(id, request);
         return ResponseEntity.ok(history);
     }
-
-
 }
 

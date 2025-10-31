@@ -17,7 +17,7 @@ import java.util.Date;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/patients")
+@RequestMapping("/api/histories")
 public class HistoryController {
 
     private final HistoryService historyService;

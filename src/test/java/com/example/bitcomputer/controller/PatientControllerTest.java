@@ -81,20 +81,6 @@ class PatientControllerTest {
     }
 
     @Test
-    @DisplayName("/write_history WriteHistoryDTO 요청 정상 반환")
-    void write_history_with_writeDto_success() throws Exception {
-        WriteHistoryDTO req = new WriteHistoryDTO();
-        req.setEmployeeId(1); req.setPatientId(2); req.setDeptId(3);
-        HistoryDTO res = new HistoryDTO(); res.setId(55);
-        when(historyService.writeHistory(any(WriteHistoryDTO.class))).thenReturn(res);
-        mockMvc.perform(post("/api/patients/write_history")
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(55));
-    }
-
-    @Test
     @DisplayName("/update_history/{id} WriteHistoryDTO 요청 정상 반환")
     void update_history_with_writeDto_success() throws Exception {
         WriteHistoryDTO req = new WriteHistoryDTO();

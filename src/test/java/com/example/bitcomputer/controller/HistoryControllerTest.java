@@ -43,7 +43,7 @@ class HistoryControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /api/patients/write_history")
+    @DisplayName("POST /api/histories/write_history")
     class WriteHistory {
         @Test
         @DisplayName("성공 시 200 OK + DTO 반환")
@@ -55,7 +55,7 @@ class HistoryControllerTest {
             HistoryDTO req = new HistoryDTO();
             req.setEmployeeId(1); req.setPatientId(2); req.setDeptId(3); req.setEntryDate(new Date());
 
-            mockMvc.perform(post("/api/patients/write_history")
+            mockMvc.perform(post("/api/histories/write_history")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isOk())
@@ -64,7 +64,7 @@ class HistoryControllerTest {
     }
 
     @Nested
-    @DisplayName("PUT /api/patients/modify_history/{id}")
+    @DisplayName("PUT /api/histories/modify_history/{id}")
     class ModifyHistory {
         @Test
         @DisplayName("성공 시 200 OK + DTO 반환")
@@ -76,7 +76,7 @@ class HistoryControllerTest {
             HistoryDTO req = new HistoryDTO();
             req.setMemo("m");
 
-            mockMvc.perform(put("/api/patients/modify_history/10")
+            mockMvc.perform(put("/api/histories/modify_history/10")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isOk())
@@ -85,12 +85,12 @@ class HistoryControllerTest {
     }
 
     @Nested
-    @DisplayName("GET /api/patients/search_history/{id}")
+    @DisplayName("GET /api/histories/search_history/{id}")
     class SearchHistory {
         @Test
         @DisplayName("start>end 이면 400 Bad Request")
         void search_bad_request() throws Exception {
-            mockMvc.perform(get("/api/patients/search_history/1")
+            mockMvc.perform(get("/api/histories/search_history/1")
                             .param("patientId", "1")
                             .param("startDate", "2025-02-02")
                             .param("endDate", "2025-01-01"))
@@ -103,7 +103,7 @@ class HistoryControllerTest {
             when(historyService.searchHistory(eq(2), any(), any()))
                     .thenReturn(Map.of("patientId", 2, "histories", java.util.List.of()));
 
-            mockMvc.perform(get("/api/patients/search_history/1")
+            mockMvc.perform(get("/api/histories/search_history/1")
                             .param("patientId", "2"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.patientId").value(2));

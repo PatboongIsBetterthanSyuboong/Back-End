@@ -4,7 +4,6 @@ import org.springframework.web.bind.annotation.*;
 import com.example.bitcomputer.jwt.TokenInfo;
 import com.example.bitcomputer.model.WaitingDTO;
 import com.example.bitcomputer.service.WaitingService;
-import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 

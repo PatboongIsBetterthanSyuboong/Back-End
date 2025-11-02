@@ -33,7 +33,7 @@ public class PatientController {
     }
 
     @PostMapping("/search_history/{id}")
-    public ResponseEntity<Map<String, Object>> searchHistory(@PathVariable int employeeId, 
+    public ResponseEntity<Map<String, Object>> searchHistory(@PathVariable("id") int employeeId, 
     @RequestParam("patientId") int patientId, 
     @RequestParam(value = "startDate", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate, 
     @RequestParam(value = "endDate", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {

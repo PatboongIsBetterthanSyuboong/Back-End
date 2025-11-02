@@ -17,6 +17,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,10 +76,35 @@ class PatientControllerTest {
     void search_patient_success() throws Exception {
         PatientDTO dto = new PatientDTO();
         dto.setId(7);
+        dto.setName("홍길동");
+        dto.setIdentityNumber("900101-1234567");
         when(patientService.searchPatientById(7)).thenReturn(dto);
         mockMvc.perform(post("/api/patients/search_patient/7"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(7));
+                .andExpect(jsonPath("$.id").value(7))
+                .andExpect(jsonPath("$.identityNumber").value("900101-1234567"));
+    }
+
+    @Test
+    @DisplayName("/search_history/{id} startDate > endDate면 400 Bad Request")
+    void search_history_badRequest_whenStartAfterEnd() throws Exception {
+        mockMvc.perform(post("/api/patients/search_history/1")
+                        .param("patientId", "2")
+                        .param("startDate", "2025-02-02")
+                        .param("endDate", "2025-01-01"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("/search_history/{id} 정상 조회 시 200 OK + Map 반환")
+    void search_history_success() throws Exception {
+        when(historyService.searchHistory(eq(2), any(), any()))
+                .thenReturn(Map.of("patientId", 2, "histories", List.of()));
+        
+        mockMvc.perform(post("/api/patients/search_history/1")
+                        .param("patientId", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.patientId").value(2));
     }
 
     @Test

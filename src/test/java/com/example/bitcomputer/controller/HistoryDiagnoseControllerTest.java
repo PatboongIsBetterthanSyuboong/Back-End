@@ -45,7 +45,7 @@ class HistoryDiagnoseControllerTest {
     }
 
     @Nested
-    @DisplayName("PUT /api/histories/{historyId}/set/diagnoses")
+    @DisplayName("PUT /api/histories/{historyId}/set_diagnoses")
     class SetDiagnoses {
         @Test
         @DisplayName("성공 시 200 OK + 목록 반환")
@@ -57,7 +57,7 @@ class HistoryDiagnoseControllerTest {
 
             List<HistoryDiagnoseDTO> req = List.of(d1);
 
-            mockMvc.perform(put("/api/histories/10/set/diagnoses").param("employeeId", "1")
+            mockMvc.perform(put("/api/histories/10/set_diagnoses").param("employeeId", "1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isOk())
@@ -67,7 +67,7 @@ class HistoryDiagnoseControllerTest {
     }
 
     @Nested
-    @DisplayName("GET /api/histories/{historyId}/get/diagnoses")
+    @DisplayName("GET /api/histories/{historyId}/get_diagnoses")
     class GetDiagnoses {
         @Test
         @DisplayName("성공 시 200 OK + 목록 반환")
@@ -77,7 +77,7 @@ class HistoryDiagnoseControllerTest {
             d1.setDose(500); d1.setTime(3); d1.setDays(5);
             when(historyDiagnoseService.getDiagnosesForHistory(eq(1), eq(10))).thenReturn(List.of(d1));
 
-            mockMvc.perform(get("/api/histories/10/get/diagnoses").param("employeeId", "1"))
+            mockMvc.perform(get("/api/histories/10/get_diagnoses").param("employeeId", "1"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$[0].id").value(1))
                     .andExpect(jsonPath("$[0].name").value("타이레놀"));
@@ -85,7 +85,7 @@ class HistoryDiagnoseControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /api/histories/{historyId}/add/diagnoses/{diagnoseId}")
+    @DisplayName("POST /api/histories/{historyId}/add_diagnose/{diagnoseId}")
     class AddDiagnoseById {
         @Test
         @DisplayName("성공 시 201 Created + 처방 반환")
@@ -95,7 +95,7 @@ class HistoryDiagnoseControllerTest {
             saved.setDose(500); saved.setTime(3); saved.setDays(5);
             when(historyDiagnoseService.addDiagnoseById(eq(1), eq(10), eq(5))).thenReturn(saved);
 
-            mockMvc.perform(post("/api/histories/10/add/diagnoses/5").param("employeeId", "1"))
+            mockMvc.perform(post("/api/histories/10/add_diagnose/5").param("employeeId", "1"))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(99))
                     .andExpect(jsonPath("$.code").value("D001"));

@@ -32,7 +32,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
         String path = request.getRequestURI();
-        if (path.startsWith("/api/user/login") || path.startsWith("/api/user/register")) {
+        // 개발용: 인증이 필요 없는 경로들
+        // if (path.startsWith("/api/user/login") || path.startsWith("/api/user/register")) {
+        if (path.startsWith("/api/user/login") || 
+            path.startsWith("/api/user/register") ||
+            path.startsWith("/api/patients/") ||
+            path.startsWith("/actuator/")) {
             filterChain.doFilter(request, response);
             return;
         }

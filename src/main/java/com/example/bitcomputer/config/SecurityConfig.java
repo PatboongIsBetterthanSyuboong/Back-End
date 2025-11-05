@@ -35,10 +35,13 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/user/login", "/api/user/register").permitAll()
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            //        .requestMatchers("/api/user/login", "/api/user/register").permitAll()
+            //        .anyRequest().authenticated()
+            //)
+            //    .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .anyRequest().permitAll() // 개발용: 모든 요청 허용
+            );
+            // JWT 필터 임시 제거 (개발용)
 
         return http.build();
     }

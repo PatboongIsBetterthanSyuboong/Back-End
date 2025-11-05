@@ -18,7 +18,7 @@ public class HistoryDiseaseController {
         this.historyDiseaseService = historyDiseaseService;
     }
 
-    @PutMapping("/{historyId}/diseases")
+    @PutMapping("/{historyId}/set_diseases")
     public ResponseEntity<List<HistoryDiseaseDTO>> setDiseases(
             @PathVariable int historyId,
             @RequestParam("employeeId") int employeeId,
@@ -28,7 +28,7 @@ public class HistoryDiseaseController {
         return ResponseEntity.ok(saved);
     }
 
-    @GetMapping("/{historyId}/diseases")
+    @GetMapping("/{historyId}/get_diseases")
     public ResponseEntity<List<HistoryDiseaseDTO>> getDiseases(
             @PathVariable int historyId,
             @RequestParam("employeeId") int employeeId
@@ -36,14 +36,14 @@ public class HistoryDiseaseController {
         return ResponseEntity.ok(historyDiseaseService.getDiseasesForHistory(employeeId, historyId));
     }
 
-    @PostMapping("/{historyId}/diseases")
-    public ResponseEntity<HistoryDiseaseDTO> addDiseaseByCode(
+    @PostMapping("/{historyId}/add_disease/{diseaseId}")
+    public ResponseEntity<HistoryDiseaseDTO> addDiseaseById(
             @PathVariable int historyId,
+            @PathVariable int diseaseId,
             @RequestParam("employeeId") int employeeId,
-            @RequestBody DiseaseDTO request,
             @RequestParam(value = "degree", required = false) String degree
     ) {
-        HistoryDiseaseDTO saved = historyDiseaseService.addDiseaseByCode(employeeId, historyId, request.getCode(), degree);
+        HistoryDiseaseDTO saved = historyDiseaseService.addDiseaseById(employeeId, historyId, diseaseId, degree);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 }

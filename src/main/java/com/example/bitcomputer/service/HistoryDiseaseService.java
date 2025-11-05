@@ -7,5 +7,5 @@ import java.util.List;
 public interface HistoryDiseaseService {
     List<HistoryDiseaseDTO> setDiseasesForHistory(int employeeId, int historyId, List<HistoryDiseaseDTO> diseases);
     List<HistoryDiseaseDTO> getDiseasesForHistory(int employeeId, int historyId);
-    HistoryDiseaseDTO addDiseaseByCode(int employeeId, int historyId, String code, String degree);
+    HistoryDiseaseDTO addDiseaseById(int employeeId, int historyId, int diseaseId, String degree);
 }

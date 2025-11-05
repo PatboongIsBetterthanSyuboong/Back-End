@@ -1,7 +1,7 @@
 package com.example.bitcomputer.controller;
 
-import com.example.bitcomputer.Repository.DiseaseRepository;
-import com.example.bitcomputer.entity.Disease;
+import com.example.bitcomputer.model.DiseaseDTO;
+import com.example.bitcomputer.service.DiseaseService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,7 +14,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.Optional;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -29,7 +28,7 @@ class DiseaseControllerTest {
     MockMvc mockMvc;
 
     @Mock
-    DiseaseRepository diseaseRepository;
+    DiseaseService diseaseService;
 
     @InjectMocks
     DiseaseController diseaseController;
@@ -40,16 +39,18 @@ class DiseaseControllerTest {
     }
 
     @Nested
-    @DisplayName("GET /api/diseases/{code}")
-    class GetByCode {
+    @DisplayName("GET /api/diseases/{id}")
+    class GetById {
         @Test
-        @DisplayName("존재 시 200 OK + DTO 반환")
+        @DisplayName("존재하면 200 OK + DTO 반환")
         void success() throws Exception {
-            // 임의 상병 코드
-            Disease entity = new Disease(1, "J00", "급성 비인두염");
-            when(diseaseRepository.findByCode(eq("J00"))).thenReturn(Optional.of(entity));
+            DiseaseDTO dto = new DiseaseDTO();
+            dto.setId(1);
+            dto.setCode("J00");
+            dto.setName("급성 비인두염");
+            when(diseaseService.getById(eq(1))).thenReturn(dto);
 
-            mockMvc.perform(get("/api/diseases/J00"))
+            mockMvc.perform(get("/api/diseases/1"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(1))
                     .andExpect(jsonPath("$.code").value("J00"))
@@ -57,11 +58,11 @@ class DiseaseControllerTest {
         }
 
         @Test
-        @DisplayName("404 Not Found")
+        @DisplayName("없으면 404 Not Found")
         void notFound() throws Exception {
-            when(diseaseRepository.findByCode(eq("XXX"))).thenReturn(Optional.empty());
+            when(diseaseService.getById(eq(999))).thenThrow(new jakarta.persistence.EntityNotFoundException("Disease not found with id 999"));
 
-            mockMvc.perform(get("/api/diseases/XXX"))
+            mockMvc.perform(get("/api/diseases/999"))
                     .andExpect(status().isNotFound());
         }
     }
@@ -72,8 +73,11 @@ class DiseaseControllerTest {
         @Test
         @DisplayName("query로 code/name 부분검색")
         void search_by_query() throws Exception {
-            when(diseaseRepository.findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(eq("J0"), eq("J0")))
-                    .thenReturn(List.of(new Disease(1, "J00", "급성 비인두염")));
+            DiseaseDTO dto = new DiseaseDTO();
+            dto.setId(1);
+            dto.setCode("J00");
+            dto.setName("급성 비인두염");
+            when(diseaseService.search(eq("J0"), eq(null), eq(null))).thenReturn(List.of(dto));
 
             mockMvc.perform(get("/api/diseases").param("query", "J0"))
                     .andExpect(status().isOk())
@@ -83,8 +87,11 @@ class DiseaseControllerTest {
         @Test
         @DisplayName("code/name 조합으로 부분검색")
         void search_by_code_name() throws Exception {
-            when(diseaseRepository.findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(eq("J0"), eq("비인두")))
-                    .thenReturn(List.of(new Disease(1, "J00", "급성 비인두염")));
+            DiseaseDTO dto = new DiseaseDTO();
+            dto.setId(1);
+            dto.setCode("J00");
+            dto.setName("급성 비인두염");
+            when(diseaseService.search(eq(null), eq("J0"), eq("비인두"))).thenReturn(List.of(dto));
 
             mockMvc.perform(get("/api/diseases").param("code", "J0").param("name", "비인두"))
                     .andExpect(status().isOk())

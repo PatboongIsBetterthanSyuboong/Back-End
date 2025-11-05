@@ -71,7 +71,7 @@ public class HistoryDiseaseServiceImpl implements HistoryDiseaseService {
 
     @Override
     @Transactional
-    public HistoryDiseaseDTO addDiseaseByCode(int employeeId, int historyId, String code, String degree) {
+    public HistoryDiseaseDTO addDiseaseById(int employeeId, int historyId, int diseaseId, String degree) {
         History history = historyRepository.findById(historyId)
                 .orElseThrow(() -> new EntityNotFoundException("History not found with id " + historyId));
 
@@ -79,12 +79,12 @@ public class HistoryDiseaseServiceImpl implements HistoryDiseaseService {
             throw new org.springframework.security.access.AccessDeniedException("Forbidden");
         }
 
-        Disease disease = diseaseRepository.findByCode(code)
-                .orElseThrow(() -> new EntityNotFoundException("Disease not found with code " + code));
+        Disease disease = diseaseRepository.findById(diseaseId)
+                .orElseThrow(() -> new EntityNotFoundException("Disease not found with id " + diseaseId));
 
         List<HistoryDisease> existing = historyDiseaseRepository.findByHistoryId(historyId);
         boolean alreadyExists = existing.stream()
-                .anyMatch(hd -> hd.getCode().equals(code));
+                .anyMatch(hd -> hd.getCode().equals(disease.getCode()));
         
         if (alreadyExists) {
             throw new IllegalArgumentException("Disease already exists for this history");

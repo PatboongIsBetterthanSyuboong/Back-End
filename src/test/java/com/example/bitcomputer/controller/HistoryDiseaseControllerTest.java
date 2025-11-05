@@ -46,7 +46,7 @@ class HistoryDiseaseControllerTest {
     }
 
     @Nested
-    @DisplayName("PUT /api/histories/{historyId}/diseases")
+    @DisplayName("PUT /api/histories/{historyId}/set_diseases")
     class SetDiseases {
         @Test
         @DisplayName("성공 시 200 OK + 목록 반환")
@@ -56,7 +56,7 @@ class HistoryDiseaseControllerTest {
 
             List<HistoryDiseaseDTO> req = List.of(d1);
 
-            mockMvc.perform(put("/api/histories/10/diseases").param("employeeId", "1")
+            mockMvc.perform(put("/api/histories/10/set_diseases").param("employeeId", "1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isOk())
@@ -66,7 +66,7 @@ class HistoryDiseaseControllerTest {
     }
 
     @Nested
-    @DisplayName("GET /api/histories/{historyId}/diseases")
+    @DisplayName("GET /api/histories/{historyId}/get_diseases")
     class GetDiseases {
         @Test
         @DisplayName("성공 시 200 OK + 목록 반환")
@@ -74,7 +74,7 @@ class HistoryDiseaseControllerTest {
             HistoryDiseaseDTO d1 = new HistoryDiseaseDTO(); d1.setId(1); d1.setHistoryId(10); d1.setCode("J00"); d1.setName("급성 비인두염");
             when(historyDiseaseService.getDiseasesForHistory(eq(1), eq(10))).thenReturn(List.of(d1));
 
-            mockMvc.perform(get("/api/histories/10/diseases").param("employeeId", "1"))
+            mockMvc.perform(get("/api/histories/10/get_diseases").param("employeeId", "1"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$[0].id").value(1))
                     .andExpect(jsonPath("$[0].name").value("급성 비인두염"));
@@ -82,22 +82,17 @@ class HistoryDiseaseControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /api/histories/{historyId}/diseases")
-    class AddDiseaseByCode {
+    @DisplayName("POST /api/histories/{historyId}/add_disease/{diseaseId}")
+    class AddDiseaseById {
         @Test
-        @DisplayName("성공 시 201 Created + 추가된 목록 반환")
+        @DisplayName("성공 시 201 Created + 질병 반환")
         void success() throws Exception {
             HistoryDiseaseDTO saved = new HistoryDiseaseDTO();
             saved.setId(99); saved.setHistoryId(10); saved.setCode("J00"); saved.setName("급성 비인두염");
-            when(historyDiseaseService.addDiseaseByCode(eq(1), eq(10), eq("J00"), eq("PRIMARY"))).thenReturn(saved);
+            when(historyDiseaseService.addDiseaseById(eq(1), eq(10), eq(5), eq("PRIMARY"))).thenReturn(saved);
 
-            DiseaseDTO req = new DiseaseDTO();
-            req.setCode("J00");
-
-            mockMvc.perform(post("/api/histories/10/diseases").param("employeeId", "1")
-                            .param("degree", "PRIMARY")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(req)))
+            mockMvc.perform(post("/api/histories/10/add_disease/5").param("employeeId", "1")
+                            .param("degree", "PRIMARY"))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(99))
                     .andExpect(jsonPath("$.code").value("J00"));

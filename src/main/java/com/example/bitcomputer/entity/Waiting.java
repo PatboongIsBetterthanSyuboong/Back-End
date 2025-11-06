@@ -20,8 +20,8 @@ public class Waiting {
     @Column(name = "patient_id", nullable = false)
     private int patientId;
 
-//    @Column(name = "dept_id", nullable = false)
-//    private int deptId;
+    @Column(name = "dept_id", nullable = false)
+    private int deptId;
     
     @Column(name = "symptom", columnDefinition = "TEXT")
     private String symptom;

@@ -10,8 +10,7 @@ import java.util.Date;
 public class WaitingDTO {
     int id;
     int patientId;
-    // 생략
-    // int deptId; 
+    int deptId;
     String symptom;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

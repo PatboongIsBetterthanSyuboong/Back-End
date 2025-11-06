@@ -29,7 +29,7 @@ public class WaitingServiceImpl implements WaitingService {
     public TokenInfo registerWaiting(WaitingDTO waitingDTO) {
         Waiting waiting = new Waiting();
         waiting.setPatientId(waitingDTO.getPatientId());
-
+        waiting.setDeptId(waitingDTO.getDeptId() > 0 ? waitingDTO.getDeptId() : 1); // 기본값 1으로 설정
         waiting.setSymptom(waitingDTO.getSymptom());
         waiting.setEntryDate(LocalDateTime.now());
         waiting.setState(waitingDTO.getState() != null ? waitingDTO.getState() : "waiting");
@@ -82,6 +82,7 @@ public class WaitingServiceImpl implements WaitingService {
         WaitingDTO dto = new WaitingDTO();
         dto.setId(waiting.getId());
         dto.setPatientId(waiting.getPatientId());
+        dto.setDeptId(waiting.getDeptId());
         dto.setSymptom(waiting.getSymptom());
         dto.setEntryDate(waiting.getEntryDate());
         dto.setState(waiting.getState());

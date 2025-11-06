@@ -9,4 +9,5 @@ public interface WaitingService {
     TokenInfo registerWaiting(WaitingDTO waitingDTO);
     List<WaitingDTO> getWaitingList();
     TokenInfo updateWaitingState(int patientId);
+    TokenInfo updateWaitingStateToHold(int patientId);
 }

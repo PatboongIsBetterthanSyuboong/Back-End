@@ -57,13 +57,19 @@ public class WaitingServiceImpl implements WaitingService {
     @Override
     @Transactional
     public TokenInfo updateWaitingState(int patientId) {
-        Optional<Waiting> optionalWaiting = waitingRepository.findByPatientIdAndState(patientId, "waiting");
+        // 상태에 관계없이 최신 대기 정보를 찾음 (completed가 아닌 경우)
+        Optional<Waiting> optionalWaiting = waitingRepository.findFirstByPatientIdOrderByIdDesc(patientId);
 
         if (optionalWaiting.isEmpty()) {
             throw new IllegalArgumentException("해당 환자의 대기 정보를 찾을 수 없습니다.");
         }
 
         Waiting waiting = optionalWaiting.get();
+
+        // 이미 완료된 경우는 변경하지 않음
+        if ("completed".equals(waiting.getState())) {
+            throw new IllegalArgumentException("이미 완료된 진료입니다.");
+        }
 
         waiting.setState("completed");
 
@@ -76,6 +82,35 @@ public class WaitingServiceImpl implements WaitingService {
 
         return new TokenInfo("Bearer", accessToken, refreshToken);
 
+    }
+
+    @Override
+    @Transactional
+    public TokenInfo updateWaitingStateToHold(int patientId) {
+        // 상태에 관계없이 최신 대기 정보를 찾음 (completed가 아닌 경우)
+        Optional<Waiting> optionalWaiting = waitingRepository.findFirstByPatientIdOrderByIdDesc(patientId);
+
+        if (optionalWaiting.isEmpty()) {
+            throw new IllegalArgumentException("해당 환자의 대기 정보를 찾을 수 없습니다.");
+        }
+
+        Waiting waiting = optionalWaiting.get();
+
+        // 이미 완료된 경우는 변경하지 않음
+        if ("completed".equals(waiting.getState())) {
+            throw new IllegalArgumentException("이미 완료된 진료는 보류로 변경할 수 없습니다.");
+        }
+
+        waiting.setState("hold");
+
+        Waiting updatedWaiting = waitingRepository.save(waiting);
+
+        // JWT 토큰 생성
+        String patientIdStr = String.valueOf(updatedWaiting.getPatientId());
+        String accessToken = jwtTokenProvider.generateAccessToken(patientIdStr);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(patientIdStr);
+
+        return new TokenInfo("Bearer", accessToken, refreshToken);
     }
 
     private WaitingDTO convertToDTO(Waiting waiting) {

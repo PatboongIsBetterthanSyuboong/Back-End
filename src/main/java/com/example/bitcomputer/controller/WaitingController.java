@@ -83,4 +83,28 @@ public class WaitingController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
+    @PutMapping("{patientid}/hold")
+    public ResponseEntity<TokenInfo> updateWaitingStateToHold(@PathVariable("patientid") int patientid) {
+        try {
+            // 필수 필드 검증
+            if (patientid <= 0) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            }
+
+            // 대기 상태를 보류로 변경
+            TokenInfo tokenInfo = waitingService.updateWaitingStateToHold(patientid);
+
+            if (tokenInfo != null) {
+                return ResponseEntity.ok(tokenInfo);
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+            }
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
 }

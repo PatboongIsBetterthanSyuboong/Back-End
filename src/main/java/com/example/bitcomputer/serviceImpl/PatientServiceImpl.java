@@ -12,6 +12,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class PatientServiceImpl implements PatientService {
@@ -56,6 +58,14 @@ public class PatientServiceImpl implements PatientService {
         }
         Patient patient = patientRepository.findByIdentityNumber(identityNumber);
         return mapToDto(patient);
+    }
+
+    @Override
+    public List<PatientDTO> getAllPatients() {
+        List<Patient> patients = patientRepository.findAll();
+        return patients.stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 
     private void validateRequest(PatientDTO request) {

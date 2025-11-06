@@ -12,6 +12,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.util.Map;
 import java.util.Date;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/patients")
@@ -55,6 +56,12 @@ public class PatientController {
     public ResponseEntity<HistoryDTO> updateHistory(@PathVariable int id, @RequestBody WriteHistoryDTO request) {
         HistoryDTO history = historyService.updateHistory(id, request);
         return ResponseEntity.ok(history);
+    }
+
+    @GetMapping("/get_all")
+    public ResponseEntity<List<PatientDTO>> getAllPatients() {
+        List<PatientDTO> patients = patientService.getAllPatients();
+        return ResponseEntity.ok(patients);
     }
 }
 

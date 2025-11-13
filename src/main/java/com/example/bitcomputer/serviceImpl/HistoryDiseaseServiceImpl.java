@@ -12,7 +12,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -66,6 +66,10 @@ public class HistoryDiseaseServiceImpl implements HistoryDiseaseService {
                 .collect(Collectors.toList());
 
         List<HistoryDisease> saved = historyDiseaseRepository.saveAll(toSave);
+
+        history.setEntryDate(LocalDateTime.now());
+        historyRepository.save(history);
+
         return saved.stream().map(this::toDto).collect(Collectors.toList());
     }
 
@@ -97,6 +101,10 @@ public class HistoryDiseaseServiceImpl implements HistoryDiseaseService {
         entity.setDegree(degree);
 
         HistoryDisease saved = historyDiseaseRepository.save(entity);
+
+        history.setEntryDate(LocalDateTime.now());
+        historyRepository.save(history);
+
         return toDto(saved);
     }
 

@@ -100,7 +100,9 @@ public class HistoryServiceImpl implements HistoryService {
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new EntityNotFoundException("Patient not found with id " + patientId));
 
-        List<History> histories = historyRepository.searchHistories(patientId, convertToLocalDateTime(startDate), convertToLocalDateTime(endDate));
+        LocalDateTime start = convertToStartOfDay(startDate);
+        LocalDateTime end = convertToEndOfDay(endDate);
+        List<History> histories = historyRepository.searchHistories(patientId, start, end);
 
         java.util.Map<String, Object> result = new java.util.HashMap<>();
         result.put("patientId", patient.getId());

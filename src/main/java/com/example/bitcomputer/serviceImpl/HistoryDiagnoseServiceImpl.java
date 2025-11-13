@@ -12,6 +12,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -64,6 +65,8 @@ public class HistoryDiagnoseServiceImpl implements HistoryDiagnoseService {
                 .collect(Collectors.toList());
 
         List<HistoryDiagnose> saved = historyDiagnoseRepository.saveAll(toSave);
+        history.setEntryDate(LocalDateTime.now());
+        historyRepository.save(history);
         return saved.stream().map(this::toDto).collect(Collectors.toList());
     }
 
@@ -97,6 +100,8 @@ public class HistoryDiagnoseServiceImpl implements HistoryDiagnoseService {
         entity.setDays(diagnose.getDays());
 
         HistoryDiagnose saved = historyDiagnoseRepository.save(entity);
+        history.setEntryDate(LocalDateTime.now());
+        historyRepository.save(history);
         return toDto(saved);
     }
 

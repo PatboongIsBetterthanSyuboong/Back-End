@@ -8,5 +8,6 @@ import java.util.List;
 
 public interface DiseaseRepository extends JpaRepository<Disease, Integer> {
     Optional<Disease> findByCode(String code);
+    Optional<Disease> findByName(String name);
     List<Disease> findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(String code, String name);
 }

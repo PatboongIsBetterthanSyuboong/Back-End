@@ -35,6 +35,24 @@ public class DataInitializer {
             jdbcTemplate.update(upsertSql);
         };
     }
+
+    @Bean
+    public CommandLineRunner initializeSuperUser(UserRepository userRepository,
+                                                 PasswordEncoder passwordEncoder) {
+        return args -> {
+            String username = "super";
+            Employee existing = userRepository.findByUsername(username);
+            if (existing == null) {
+                Employee superUser = new Employee();
+                superUser.setName("Super Admin");
+                superUser.setDeptId(1);
+                superUser.setRole(Role.SUPER_USER);
+                superUser.setUsername(username);
+                superUser.setPassword(passwordEncoder.encode("1234"));
+                userRepository.save(superUser);
+            }
+        };
+    }
 }
 
 

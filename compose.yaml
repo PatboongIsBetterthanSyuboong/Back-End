@@ -3,7 +3,7 @@ services:
     image: mysql:8
     container_name: bit-mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=5776
+      - MYSQL_ROOT_PASSWORD=Dd905925@
       - MYSQL_DATABASE=bitcomputer
     ports:
       - "3307:3306"

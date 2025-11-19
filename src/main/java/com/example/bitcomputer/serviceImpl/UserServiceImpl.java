@@ -6,10 +6,10 @@ import com.example.bitcomputer.model.LoginRequestDTO;
 import com.example.bitcomputer.service.UserService;
 import com.example.bitcomputer.Repository.UserRepository;
 import com.example.bitcomputer.entity.Employee;
+import com.example.bitcomputer.entity.Role;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.example.bitcomputer.jwt.JwtTokenProvider;
-import com.example.bitcomputer.serviceImpl.TokenBlacklistService;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -38,7 +38,16 @@ public class UserServiceImpl implements UserService {
         int requestedDeptId = userRegisterDTO.getDeptId();
         int defaultDeptId = 1; // 더미 부서 ID
         employee.setDeptId(requestedDeptId > 0 ? requestedDeptId : defaultDeptId);
-        employee.setRole(userRegisterDTO.getRole());
+        String requestedRole = userRegisterDTO.getRole();
+        Role role = Role.DEFAULT;
+        if (requestedRole != null) {
+            try {
+                role = Role.valueOf(requestedRole.toUpperCase());
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid role: " + requestedRole);
+            }
+        }
+        employee.setRole(role);
         employee.setUsername(userRegisterDTO.getUsername());
         // 비밀번호 암호화 (SecurityConfig에서 정의한 PasswordEncoder 사용)
         employee.setPassword(passwordEncoder.encode(userRegisterDTO.getPassword()));

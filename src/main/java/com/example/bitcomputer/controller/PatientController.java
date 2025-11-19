@@ -1,5 +1,9 @@
     package com.example.bitcomputer.controller;
 
+import com.example.bitcomputer.Repository.EmployeeRepository;
+import com.example.bitcomputer.entity.Employee;
+import com.example.bitcomputer.entity.Role;
+import com.example.bitcomputer.jwt.JwtTokenProvider;
 import com.example.bitcomputer.model.PatientDTO;
 import com.example.bitcomputer.model.HistoryDTO;
 import com.example.bitcomputer.model.WriteHistoryDTO;
@@ -11,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.util.Map;
+
 import java.util.Date;
 import java.util.List;
 
@@ -20,10 +25,15 @@ public class PatientController {
 
     private final PatientService patientService;
     private final HistoryService historyService;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final EmployeeRepository employeeRepository;
 
-    public PatientController(PatientService patientService, HistoryService historyService) {
+    public PatientController(PatientService patientService, HistoryService historyService,
+                             JwtTokenProvider jwtTokenProvider, EmployeeRepository employeeRepository) {
         this.patientService = patientService;
         this.historyService = historyService;
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.employeeRepository = employeeRepository;
     }
 
     @PostMapping("/get_patient_id")
@@ -62,6 +72,27 @@ public class PatientController {
     public ResponseEntity<List<PatientDTO>> getAllPatients() {
         List<PatientDTO> patients = patientService.getAllPatients();
         return ResponseEntity.ok(patients);
+    }
+
+    @GetMapping("/get_role")
+    public ResponseEntity<Role> getRole(@RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String token = authorizationHeader.substring(7);
+        if (!jwtTokenProvider.validateToken(token)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String username = jwtTokenProvider.extractUsername(token);
+        Employee employee = employeeRepository.findByUsername(username);
+
+        if (employee == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        return ResponseEntity.ok(employee.getRole());
     }
 }
 

@@ -1,9 +1,13 @@
 package com.example.bitcomputer.serviceImpl;
 
 import com.example.bitcomputer.Repository.PatientRepository;
+import com.example.bitcomputer.entity.Employee;
 import com.example.bitcomputer.entity.Patient;
+import com.example.bitcomputer.entity.Role;
 import com.example.bitcomputer.model.PatientDTO;
 import com.example.bitcomputer.service.PatientService;
+
+import org.springframework.boot.autoconfigure.couchbase.CouchbaseProperties.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -112,4 +116,3 @@ public class PatientServiceImpl implements PatientService {
         return Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
     }
 }
-

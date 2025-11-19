@@ -1,5 +1,6 @@
 package com.example.bitcomputer.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -21,8 +22,9 @@ public class Employee {
     @Column(name = "dept_id", nullable = false)
     private int deptId;
     
+    @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
-    private String role;
+    private Role role;
     
     @Column(name = "username", nullable = false, unique = true)
     private String username;
@@ -32,5 +34,6 @@ public class Employee {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dept_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Dept dept;
 }

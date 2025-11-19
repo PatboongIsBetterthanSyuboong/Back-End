@@ -21,11 +21,3 @@ ON DUPLICATE KEY UPDATE code = VALUES(code),
                         dose = VALUES(dose),
                         time = VALUES(time),
                         days = VALUES(days);
-
-INSERT INTO employee (id, name, dept_id, role, username, password)
-VALUES (1, '관리자', 1, 'ADMIN', 'employee01', '$2a$10$xP7NfRNDaWR5w7FoD4nYMeA8iXU8cnW7NIgZBWLTTrNCRXKgTUSwe')
-ON DUPLICATE KEY UPDATE name = VALUES(name),
-                        dept_id = VALUES(dept_id),
-                        role = VALUES(role),
-                        username = VALUES(username),
-                        password = VALUES(password);

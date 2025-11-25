@@ -3,10 +3,15 @@ package com.example.bitcomputer.serviceImpl;
 import com.example.bitcomputer.Repository.DiagnoseRepository;
 import com.example.bitcomputer.entity.Diagnose;
 import com.example.bitcomputer.model.DiagnoseDTO;
+import com.example.bitcomputer.model.PaginatedResponse;
 import com.example.bitcomputer.service.DiagnoseService;
 import jakarta.persistence.EntityNotFoundException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -33,17 +38,25 @@ public class DiagnoseServiceImpl implements DiagnoseService {
     }
 
     @Override
-    public List<DiagnoseDTO> search(String query, String code, String name) {
-        String codeQuery = (query != null) ? query : (code != null ? code : "");
-        String nameQuery = (query != null) ? query : (name != null ? name : "");
+    public PaginatedResponse<DiagnoseDTO> search(String query, String code, String name, int page, int size) {
+        String codeQuery = resolveSearchValue(query, code);
+        String nameQuery = resolveSearchValue(query, name);
 
-        List<DiagnoseDTO> result = diagnoseRepository
-                .findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(codeQuery, nameQuery)
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0),
+                normalizeSize(size),
+                Sort.by("name").ascending()
+        );
+
+        Page<Diagnose> result = diagnoseRepository
+                .findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(codeQuery, nameQuery, pageable);
+
+        List<DiagnoseDTO> items = result.getContent()
                 .stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
 
-        return result;
+        return new PaginatedResponse<>(items, result.getTotalElements(), result.getNumber(), result.getSize());
     }
 
     @Override
@@ -164,6 +177,21 @@ public class DiagnoseServiceImpl implements DiagnoseService {
         dto.setTime(entity.getTime());
         dto.setDays(entity.getDays());
         return dto;
+    }
+
+    private String resolveSearchValue(String primary, String fallback) {
+        if (primary != null && !primary.isBlank()) {
+            return primary.trim();
+        }
+        return fallback != null ? fallback.trim() : "";
+    }
+
+    private int normalizeSize(int size) {
+        int defaultSize = 50;
+        if (size <= 0) {
+            return defaultSize;
+        }
+        return Math.min(size, 200);
     }
 }
 

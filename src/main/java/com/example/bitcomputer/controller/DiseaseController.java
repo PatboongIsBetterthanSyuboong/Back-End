@@ -1,6 +1,7 @@
 package com.example.bitcomputer.controller;
 
 import com.example.bitcomputer.model.DiseaseDTO;
+import com.example.bitcomputer.model.PaginatedResponse;
 import com.example.bitcomputer.service.DiseaseService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,8 +9,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/diseases")
@@ -32,12 +31,14 @@ public class DiseaseController {
     }
 
     @GetMapping
-    public ResponseEntity<List<DiseaseDTO>> search(
+    public ResponseEntity<PaginatedResponse<DiseaseDTO>> search(
             @RequestParam(value = "query", required = false) String query,
             @RequestParam(value = "code", required = false) String code,
-            @RequestParam(value = "name", required = false) String name
+            @RequestParam(value = "name", required = false) String name,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "50") int size
     ) {
-        List<DiseaseDTO> result = diseaseService.search(query, code, name);
+        PaginatedResponse<DiseaseDTO> result = diseaseService.search(query, code, name, page, size);
         return ResponseEntity.ok(result);
     }
 }

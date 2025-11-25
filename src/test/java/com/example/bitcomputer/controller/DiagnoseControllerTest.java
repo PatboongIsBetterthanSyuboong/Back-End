@@ -1,6 +1,7 @@
 package com.example.bitcomputer.controller;
 
 import com.example.bitcomputer.model.DiagnoseDTO;
+import com.example.bitcomputer.model.PaginatedResponse;
 import com.example.bitcomputer.service.DiagnoseService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,6 +16,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -85,11 +87,12 @@ class DiagnoseControllerTest {
             dto.setDose(500);
             dto.setTime(3);
             dto.setDays(5);
-            when(diagnoseService.search(eq("타이"), eq(null), eq(null))).thenReturn(List.of(dto));
+            PaginatedResponse<DiagnoseDTO> response = new PaginatedResponse<>(List.of(dto), 1, 0, 50);
+            when(diagnoseService.search(eq("타이"), eq(null), eq(null), anyInt(), anyInt())).thenReturn(response);
 
             mockMvc.perform(get("/api/diagnoses").param("query", "타이"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].code").value("D001"));
+                    .andExpect(jsonPath("$.items[0].code").value("D001"));
         }
 
         @Test
@@ -102,11 +105,12 @@ class DiagnoseControllerTest {
             dto.setDose(500);
             dto.setTime(3);
             dto.setDays(5);
-            when(diagnoseService.search(eq(null), eq("D0"), eq("타이레놀"))).thenReturn(List.of(dto));
+            PaginatedResponse<DiagnoseDTO> response = new PaginatedResponse<>(List.of(dto), 1, 0, 50);
+            when(diagnoseService.search(eq(null), eq("D0"), eq("타이레놀"), anyInt(), anyInt())).thenReturn(response);
 
             mockMvc.perform(get("/api/diagnoses").param("code", "D0").param("name", "타이레놀"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].name").value("타이레놀"));
+                    .andExpect(jsonPath("$.items[0].name").value("타이레놀"));
         }
     }
 }

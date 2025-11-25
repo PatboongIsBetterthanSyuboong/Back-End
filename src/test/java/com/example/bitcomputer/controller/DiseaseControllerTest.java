@@ -1,6 +1,7 @@
 package com.example.bitcomputer.controller;
 
 import com.example.bitcomputer.model.DiseaseDTO;
+import com.example.bitcomputer.model.PaginatedResponse;
 import com.example.bitcomputer.service.DiseaseService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -77,11 +79,12 @@ class DiseaseControllerTest {
             dto.setId(1);
             dto.setCode("J00");
             dto.setName("급성 비인두염");
-            when(diseaseService.search(eq("J0"), eq(null), eq(null))).thenReturn(List.of(dto));
+            PaginatedResponse<DiseaseDTO> response = new PaginatedResponse<>(List.of(dto), 1, 0, 50);
+            when(diseaseService.search(eq("J0"), eq(null), eq(null), anyInt(), anyInt())).thenReturn(response);
 
             mockMvc.perform(get("/api/diseases").param("query", "J0"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].code").value("J00"));
+                    .andExpect(jsonPath("$.items[0].code").value("J00"));
         }
 
         @Test
@@ -91,11 +94,12 @@ class DiseaseControllerTest {
             dto.setId(1);
             dto.setCode("J00");
             dto.setName("급성 비인두염");
-            when(diseaseService.search(eq(null), eq("J0"), eq("비인두"))).thenReturn(List.of(dto));
+            PaginatedResponse<DiseaseDTO> response = new PaginatedResponse<>(List.of(dto), 1, 0, 50);
+            when(diseaseService.search(eq(null), eq("J0"), eq("비인두"), anyInt(), anyInt())).thenReturn(response);
 
             mockMvc.perform(get("/api/diseases").param("code", "J0").param("name", "비인두"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].name").value("급성 비인두염"));
+                    .andExpect(jsonPath("$.items[0].name").value("급성 비인두염"));
         }
     }
 }

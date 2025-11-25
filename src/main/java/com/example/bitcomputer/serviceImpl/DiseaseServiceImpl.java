@@ -3,10 +3,15 @@ package com.example.bitcomputer.serviceImpl;
 import com.example.bitcomputer.Repository.DiseaseRepository;
 import com.example.bitcomputer.entity.Disease;
 import com.example.bitcomputer.model.DiseaseDTO;
+import com.example.bitcomputer.model.PaginatedResponse;
 import com.example.bitcomputer.service.DiseaseService;
 import jakarta.persistence.EntityNotFoundException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -33,17 +38,25 @@ public class DiseaseServiceImpl implements DiseaseService {
     }
 
     @Override
-    public List<DiseaseDTO> search(String query, String code, String name) {
-        String codeQuery = (query != null) ? query : (code != null ? code : "");
-        String nameQuery = (query != null) ? query : (name != null ? name : "");
+    public PaginatedResponse<DiseaseDTO> search(String query, String code, String name, int page, int size) {
+        String codeQuery = resolveSearchValue(query, code);
+        String nameQuery = resolveSearchValue(query, name);
 
-        List<DiseaseDTO> result = diseaseRepository
-                .findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(codeQuery, nameQuery)
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0),
+                normalizeSize(size),
+                Sort.by("name").ascending()
+        );
+
+        Page<Disease> result = diseaseRepository
+                .findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(codeQuery, nameQuery, pageable);
+
+        List<DiseaseDTO> items = result.getContent()
                 .stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
 
-        return result;
+        return new PaginatedResponse<>(items, result.getTotalElements(), result.getNumber(), result.getSize());
     }
 
     @Override
@@ -134,6 +147,21 @@ public class DiseaseServiceImpl implements DiseaseService {
         dto.setCode(entity.getCode());
         dto.setName(entity.getName());
         return dto;
+    }
+
+    private String resolveSearchValue(String primary, String fallback) {
+        if (primary != null && !primary.isBlank()) {
+            return primary.trim();
+        }
+        return fallback != null ? fallback.trim() : "";
+    }
+
+    private int normalizeSize(int size) {
+        int defaultSize = 50;
+        if (size <= 0) {
+            return defaultSize;
+        }
+        return Math.min(size, 200);
     }
 }
 

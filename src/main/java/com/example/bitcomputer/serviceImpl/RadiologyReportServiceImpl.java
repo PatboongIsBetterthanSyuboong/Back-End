@@ -70,26 +70,46 @@ public class RadiologyReportServiceImpl implements RadiologyReportService {
                     responseDTO != null ? responseDTO.getSummary() : "null",
                     responseDTO != null ? responseDTO.getStatus() : "null");
             
-            // 데이터베이스에 저장
-            RadiologyReport report = new RadiologyReport();
-            // radiologyRequestId는 @GeneratedValue로 자동 생성되므로 설정하지 않음
-            report.setPatientId(request.getPatientId());
-            report.setEmployeeId(request.getEmployeeId());
-            report.setDeptId(request.getDeptId());
-            report.setSymptomDetail(request.getSymptomDetail());
-            report.setMemo(request.getMemo());
-            report.setEntryDate(convertToLocalDate(request.getEntryDate()));
-            report.setDetailImageAddress(request.getDetailImageAddress());
+            // 데이터베이스에 저장 또는 업데이트
+            RadiologyReport report;
+            if (request.getRadiologyRequestId() > 0) {
+                // 기존 레포트가 있으면 업데이트
+                report = radiologyReportRepository.findById(request.getRadiologyRequestId())
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "영상판독 요청을 찾을 수 없습니다: " + request.getRadiologyRequestId()
+                        ));
+            } else {
+                // 새 레포트 생성
+                report = new RadiologyReport();
+            }
+            
+            // AI 분석 결과로 업데이트
             report.setResult(responseDTO != null ? responseDTO.isResult() : false);
             report.setSummary(responseDTO != null ? responseDTO.getSummary() : null);
             report.setImageUrl(responseDTO != null ? responseDTO.getImageUrl() : null);
-            report.setStatus(responseDTO != null ? responseDTO.getStatus() : null);
+            report.setStatus(responseDTO != null ? responseDTO.getStatus() : "completed");
             
-            log.info("저장할 데이터 - patientId: {}, employeeId: {}, deptId: {}, entryDate: {}, detailImageAddress: {}, result: {}", 
-                    report.getPatientId(), report.getEmployeeId(), report.getDeptId(), 
-                    report.getEntryDate(), report.getDetailImageAddress(), report.getResult());
+            // 새 레포트인 경우에만 기본 정보 설정
+            if (request.getRadiologyRequestId() == 0) {
+                report.setPatientId(request.getPatientId());
+                report.setEmployeeId(request.getEmployeeId());
+                report.setDeptId(request.getDeptId());
+                report.setSymptomDetail(request.getSymptomDetail());
+                report.setMemo(request.getMemo());
+                report.setEntryDate(convertToLocalDate(request.getEntryDate()));
+                report.setDetailImageAddress(request.getDetailImageAddress());
+            }
+            
+            log.info("저장할 데이터 - radiologyRequestId: {}, patientId: {}, result: {}", 
+                    report.getRadiologyRequestId(), report.getPatientId(), report.getResult());
             
             radiologyReportRepository.save(report);
+            
+            // responseDTO에 radiologyRequestId 설정
+            if (responseDTO != null) {
+                responseDTO.setRadiologyRequestId(report.getRadiologyRequestId());
+            }
             
             return responseDTO;
             
@@ -156,6 +176,42 @@ public class RadiologyReportServiceImpl implements RadiologyReportService {
                     errorMsg
             );
         }
+    }
+
+    @Override
+    public int createRadiologyReportRequest(RadiologyReportRequestDTO request) {
+        // 영상판독 요청을 DB에 저장하여 radiologyRequestId 생성
+        RadiologyReport report = new RadiologyReport();
+        report.setPatientId(request.getPatientId());
+        report.setEmployeeId(request.getEmployeeId());
+        report.setDeptId(request.getDeptId());
+        report.setSymptomDetail(request.getSymptomDetail());
+        report.setMemo(request.getMemo());
+        report.setEntryDate(convertToLocalDate(request.getEntryDate()));
+        report.setDetailImageAddress(request.getDetailImageAddress()); // 임시 경로
+        report.setResult(null);
+        report.setSummary(null);
+        report.setImageUrl(null);
+        report.setStatus("pending"); // 초기 상태
+        
+        RadiologyReport savedReport = radiologyReportRepository.save(report);
+        log.info("영상판독 요청 생성됨 - radiologyRequestId: {}", savedReport.getRadiologyRequestId());
+        
+        return savedReport.getRadiologyRequestId();
+    }
+    
+    @Override
+    public void updateImagePath(int radiologyRequestId, String imagePath) {
+        // 영상판독 요청의 이미지 경로 업데이트
+        RadiologyReport report = radiologyReportRepository.findById(radiologyRequestId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "영상판독 요청을 찾을 수 없습니다: " + radiologyRequestId
+                ));
+        
+        report.setDetailImageAddress(imagePath);
+        radiologyReportRepository.save(report);
+        log.info("이미지 경로 업데이트됨 - radiologyRequestId: {}, imagePath: {}", radiologyRequestId, imagePath);
     }
 
     private LocalDate convertToLocalDate(Date date) {

@@ -106,10 +106,31 @@ public class RadiologyReportServiceImpl implements RadiologyReportService {
             // HTTP 5xx 오류 (서버 오류)
             String errorBody = e.getResponseBodyAsString();
             log.error("Flask API 서버 오류 (HTTP {}): {}", e.getStatusCode(), errorBody, e);
+            
+            // JSON 응답에서 error 필드 추출 시도
+            String errorMessage = "AI API 서버 오류";
+            if (errorBody != null && !errorBody.isEmpty()) {
+                try {
+                    // 간단한 JSON 파싱 (error 필드 추출)
+                    if (errorBody.contains("\"error\"")) {
+                        int errorStart = errorBody.indexOf("\"error\"") + 8;
+                        int errorEnd = errorBody.indexOf("\"", errorStart);
+                        if (errorEnd > errorStart) {
+                            errorMessage = errorBody.substring(errorStart, errorEnd);
+                        } else {
+                            errorMessage = errorBody;
+                        }
+                    } else {
+                        errorMessage = errorBody;
+                    }
+                } catch (Exception parseEx) {
+                    errorMessage = errorBody;
+                }
+            }
+            
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "AI API 서버 오류 (HTTP " + e.getStatusCode() + "): " + 
-                    (errorBody != null && !errorBody.isEmpty() ? errorBody : e.getMessage())
+                    "AI API 서버 오류 (HTTP " + e.getStatusCode() + "): " + errorMessage
             );
         } catch (org.springframework.web.client.ResourceAccessException e) {
             // 연결 오류 (Flask 서버가 실행되지 않음)

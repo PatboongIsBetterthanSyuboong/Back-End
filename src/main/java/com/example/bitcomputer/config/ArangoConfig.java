@@ -18,7 +18,7 @@ public class ArangoConfig implements ArangoConfiguration {
     @Value("${arangodb.password}")
     private String password;
 
-    @Value("${arangdb.database}")
+    @Value("${arangodb.database}")
     private String database;
 
     @Override

@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface MedicalCertificateRepository extends JpaRepository<MedicalCertificateRecord, Integer> {
     Optional<MedicalCertificateRecord> findTopByHistoryIdOrderByCreatedAtDesc(int historyId);
     List<MedicalCertificateRecord> findByHistoryId(int historyId);
+    List<MedicalCertificateRecord> findByHistoryIdIn(List<Integer> historyIds);
 }

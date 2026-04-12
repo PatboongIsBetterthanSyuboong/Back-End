@@ -215,9 +215,53 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
                     .collect(Collectors.toList());
         }
 
-        return histories.stream()
-                .map(this::buildCertificateHistoryDTO)
-                .collect(Collectors.toList());
+        if (histories.isEmpty()) return Collections.emptyList();
+
+        // 5. 전체 조회
+        List<Integer> historyIds = histories.stream().map(History::getId).collect(Collectors.toList());
+        List<Integer> patientIds = histories.stream().map(History::getPatientId).distinct().collect(Collectors.toList());
+        List<Integer> employeeIds = histories.stream().map(History::getEmployeeId).distinct().collect(Collectors.toList());
+        List<Integer> deptIds2 = histories.stream().map(History::getDeptId).distinct().collect(Collectors.toList());
+
+        Map<Integer, Patient> patientMap = patientRepository.findAllById(patientIds).stream()
+                .collect(Collectors.toMap(Patient::getId, p -> p));
+        Map<Integer, Employee> employeeMap = employeeRepository.findAllById(employeeIds).stream()
+                .collect(Collectors.toMap(Employee::getId, e -> e));
+        Map<Integer, Dept> deptMap2 = deptRepository.findAllById(deptIds2).stream()
+                .collect(Collectors.toMap(Dept::getId, d -> d));
+        Map<Integer, String> issueDateMap = medicalCertificateRepository.findByHistoryIdIn(historyIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        MedicalCertificateRecord::getHistoryId,
+                        Collectors.collectingAndThen(
+                                Collectors.maxBy(Comparator.comparing(MedicalCertificateRecord::getCreatedAt)),
+                                opt -> opt.map(r -> r.getCreatedAt().toLocalDate()
+                                        .format(DateTimeFormatter.ISO_LOCAL_DATE)).orElse(null)
+                        )
+                ));
+
+        return histories.stream().map(h -> {
+            CertificateHistoryDTO dto = new CertificateHistoryDTO();
+            dto.setHistoryId(h.getId());
+            dto.setPatientId(h.getPatientId());
+            dto.setSymptomDetail(h.getSymptomDetail());
+            dto.setIssueDate(issueDateMap.get(h.getId()));
+
+            Patient p = patientMap.get(h.getPatientId());
+            if (p != null) {
+                dto.setPatientName(p.getName());
+                dto.setPatientNumber(String.valueOf(p.getId()));
+                dto.setGender(p.getGender());
+                dto.setAge(calculateAge(p.getBirth()));
+            }
+            Employee e = employeeMap.get(h.getEmployeeId());
+            if (e != null) dto.setDoctor(e.getName());
+
+            Dept d = deptMap2.get(h.getDeptId());
+            if (d != null) dto.setDepartment(d.getDept());
+
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     private boolean isNotBlank(String s) {
@@ -309,8 +353,6 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
         log.info("진단서 저장 완료 - historyId: {}, feedbackType: {}", historyId, feedbackType);
     }
 
-    // ─── Private helpers ────────────────────────────────────────────────────────
-
     private String callAiGenerateApi(AgentDocumentGenerateDTO request) {
         String url = aiApiBaseUrl + "/api/ai/document/generate";
 
@@ -368,35 +410,6 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
         }
 
         return sb.toString();
-    }
-
-    private CertificateHistoryDTO buildCertificateHistoryDTO(History h) {
-        CertificateHistoryDTO dto = new CertificateHistoryDTO();
-        dto.setHistoryId(h.getId());
-        dto.setPatientId(h.getPatientId());
-        dto.setSymptomDetail(h.getSymptomDetail());
-        medicalCertificateRepository
-                .findTopByHistoryIdOrderByCreatedAtDesc(h.getId())
-                .ifPresentOrElse(
-                        r -> dto.setIssueDate(r.getCreatedAt().toLocalDate()
-                                .format(DateTimeFormatter.ISO_LOCAL_DATE)),
-                        () -> dto.setIssueDate(null)
-                );
-
-        patientRepository.findById(h.getPatientId()).ifPresent(p -> {
-            dto.setPatientName(p.getName());
-            dto.setPatientNumber(String.valueOf(p.getId()));
-            dto.setGender(p.getGender());
-            dto.setAge(calculateAge(p.getBirth()));
-        });
-
-        employeeRepository.findById(h.getEmployeeId())
-                .ifPresent(e -> dto.setDoctor(e.getName()));
-
-        deptRepository.findById(h.getDeptId()).ifPresent(d ->
-                dto.setDepartment(d.getDept()));
-
-        return dto;
     }
 
     private String savePdfFile(int historyId, MultipartFile pdfFile) {

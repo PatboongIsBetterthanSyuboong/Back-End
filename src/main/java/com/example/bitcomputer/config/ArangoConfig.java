@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableArangoRepositories(basePackages = "com.example.bitcomputer.repository.arango")
+@EnableArangoRepositories(basePackages = "com.example.bitcomputer.Repository.arango")
 public class ArangoConfig implements ArangoConfiguration {
     @Value("${arangodb.hosts}")
     private String hosts;

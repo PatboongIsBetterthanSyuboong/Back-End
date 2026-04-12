@@ -1,4 +1,4 @@
-package com.example.bitcomputer.repository.arango;
+package com.example.bitcomputer.Repository.arango;
 
 import com.example.bitcomputer.entity.arango.DiseaseNode;
 import com.arangodb.springframework.repository.ArangoRepository;

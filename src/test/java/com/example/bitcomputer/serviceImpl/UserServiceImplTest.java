@@ -44,7 +44,7 @@ class UserServiceImplTest {
         void duplicate_username() {
             when(userRepository.findByUsername(eq("dup"))).thenReturn(new Employee());
             UserRegisterDTO dto = new UserRegisterDTO();
-            dto.setUsername("dup"); dto.setPassword("p"); dto.setName("n"); dto.setDeptId(1); dto.setRole("r");
+            dto.setUsername("dup"); dto.setPassword("p"); dto.setName("n"); dto.setDeptId(1); dto.setRole("DOCTOR");
             assertThatThrownBy(() -> userService.registerUser(dto))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("exists");
@@ -56,7 +56,7 @@ class UserServiceImplTest {
             when(userRepository.findByUsername(anyString())).thenReturn(null);
             when(passwordEncoder.encode(anyString())).thenReturn("enc");
             UserRegisterDTO dto = new UserRegisterDTO();
-            dto.setUsername("ok"); dto.setPassword("p"); dto.setName("n"); dto.setDeptId(1); dto.setRole("r");
+            dto.setUsername("ok"); dto.setPassword("p"); dto.setName("n"); dto.setDeptId(1); dto.setRole("DOCTOR");
             userService.registerUser(dto);
             verify(userRepository).save(any(Employee.class));
         }

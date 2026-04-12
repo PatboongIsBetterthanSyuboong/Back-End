@@ -44,8 +44,8 @@ public class SuperUserController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("SUPER_USER만 역할 변경이 가능합니다.");
         }
 
-        Employee employee = employeeRepository.findById(id);
-        if(employee == null) {
+        Employee employee = employeeRepository.findById(id).orElse(null);
+        if (employee == null) {
             return ResponseEntity.notFound().build();
         }
 

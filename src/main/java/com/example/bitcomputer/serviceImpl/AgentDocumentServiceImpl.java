@@ -375,7 +375,13 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
         dto.setHistoryId(h.getId());
         dto.setPatientId(h.getPatientId());
         dto.setSymptomDetail(h.getSymptomDetail());
-        dto.setIssueDate(h.getEntryDate().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE));
+        medicalCertificateRepository
+                .findTopByHistoryIdOrderByCreatedAtDesc(h.getId())
+                .ifPresentOrElse(
+                        r -> dto.setIssueDate(r.getCreatedAt().toLocalDate()
+                                .format(DateTimeFormatter.ISO_LOCAL_DATE)),
+                        () -> dto.setIssueDate(null)
+                );
 
         patientRepository.findById(h.getPatientId()).ifPresent(p -> {
             dto.setPatientName(p.getName());
@@ -400,7 +406,7 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
             String filename = "certificate_" + System.currentTimeMillis() + ".pdf";
             Path dest = dir.resolve(filename);
             pdfFile.transferTo(dest);
-            return dir.getFileName() + "/" + filename;
+            return certificateStoragePath + "/" + historyId + "/" + filename;
         } catch (IOException e) {
             log.error("PDF 파일 저장 실패 - historyId: {}", historyId, e);
             return null;

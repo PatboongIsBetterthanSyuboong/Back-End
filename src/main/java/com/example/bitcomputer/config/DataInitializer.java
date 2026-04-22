@@ -6,6 +6,7 @@ import com.example.bitcomputer.entity.Role;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -27,6 +28,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class DataInitializer {
 
     @Bean
+    @Order(1)
     public CommandLineRunner initializeDummyDept(JdbcTemplate jdbcTemplate) {
         return args -> {
             // dept 테이블에 id=1 이 없으면 생성 (UNASSIGNED)
@@ -37,6 +39,7 @@ public class DataInitializer {
     }
 
     @Bean
+    @Order(2)
     public CommandLineRunner initializeSuperUser(UserRepository userRepository,
                                                  PasswordEncoder passwordEncoder) {
         return args -> {

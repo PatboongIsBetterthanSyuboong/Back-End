@@ -16,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -199,7 +200,7 @@ public class CertificateEvaluationServiceImpl implements CertificateEvaluationSe
                     Map content = (Map) candidates.get(0).get("content");
                     List<Map> parts = (List<Map>) content.get("parts");
                     if (parts != null && !parts.isEmpty()) {
-                        String raw = parts.get(0).get("text").toString().trim();
+                        String raw = Objects.toString(parts.get(0).get("text"), "").trim();
                         return parseCoTResponse(raw);
                     }
                 }

@@ -3,7 +3,7 @@ package com.example.bitcomputer.serviceImpl;
 import com.example.bitcomputer.Repository.*;
 import com.example.bitcomputer.entity.*;
 import com.example.bitcomputer.jwt.JwtTokenProvider;
-import com.example.bitcomputer.model.AgentDocumentGenerateDTO;
+import com.example.bitcomputer.model.CertificateAgentRequest;
 import com.example.bitcomputer.model.CertificateFormDTO;
 import com.example.bitcomputer.model.CertificateHistoryDTO;
 import com.example.bitcomputer.model.GenerateCertificateResponseDTO;
@@ -12,9 +12,7 @@ import com.example.bitcomputer.service.AgentDocumentService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -41,10 +39,7 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
     private final HistoryDiagnoseRepository historyDiagnoseRepository;
     private final MedicalCertificateRepository medicalCertificateRepository;
     private final JwtTokenProvider jwtTokenProvider;
-    private final RestTemplate restTemplate;
-
-    @Value("${ai.api.base-url:http://localhost:5000}")
-    private String aiApiBaseUrl;
+    private final CertificateAgentClient certificateAgentClient;
 
     @Value("${medical.certificate.storage-path:certificates}")
     private String certificateStoragePath;
@@ -58,7 +53,7 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
             HistoryDiagnoseRepository historyDiagnoseRepository,
             MedicalCertificateRepository medicalCertificateRepository,
             JwtTokenProvider jwtTokenProvider,
-            RestTemplate restTemplate) {
+            CertificateAgentClient certificateAgentClient) {
         this.historyRepository = historyRepository;
         this.patientRepository = patientRepository;
         this.employeeRepository = employeeRepository;
@@ -67,7 +62,7 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
         this.historyDiagnoseRepository = historyDiagnoseRepository;
         this.medicalCertificateRepository = medicalCertificateRepository;
         this.jwtTokenProvider = jwtTokenProvider;
-        this.restTemplate = restTemplate;
+        this.certificateAgentClient = certificateAgentClient;
     }
 
     @Override
@@ -281,36 +276,34 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
         List<HistoryDisease> diseases = historyDiseaseRepository.findByHistoryId(historyId);
         List<HistoryDiagnose> diagnoses = historyDiagnoseRepository.findByHistoryId(historyId);
 
-        // Flask AI 요청 DTO 구성
-        AgentDocumentGenerateDTO aiRequest = new AgentDocumentGenerateDTO();
-        aiRequest.setHistoryId(historyId);
-        aiRequest.setCertificateType(certificateType != null ? certificateType : "GENERAL");
-        aiRequest.setPatientName(patient.getName());
-        aiRequest.setPatientAge(calculateAge(patient.getBirth()));
-        aiRequest.setPatientGender(patient.getGender());
-        aiRequest.setEntryDate(history.getEntryDate().toLocalDate().toString());
-        aiRequest.setSymptomDetail(history.getSymptomDetail());
+        // Python 진단서 에이전트 요청 DTO 구성
+        CertificateAgentRequest agentRequest = CertificateAgentRequest.builder()
+                .historyId(historyId)
+                .certificateType(certificateType != null ? certificateType : "GENERAL")
+                .patientName(patient.getName())
+                .patientAge(calculateAge(patient.getBirth()))
+                .patientGender(patient.getGender())
+                .entryDate(history.getEntryDate().toLocalDate().toString())
+                .symptomDetail(history.getSymptomDetail())
+                .diseases(diseases.stream().map(d -> CertificateAgentRequest.DiseaseInfo.builder()
+                        .code(d.getCode())
+                        .name(d.getName())
+                        .degree(d.getDegree())
+                        .build()).collect(Collectors.toList()))
+                .diagnoses(diagnoses.stream().map(d -> CertificateAgentRequest.DiagnoseInfo.builder()
+                        .code(d.getCode())
+                        .name(d.getName())
+                        .dose(d.getDose())
+                        .time(d.getTime())
+                        .days(d.getDays())
+                        .build()).collect(Collectors.toList()))
+                .build();
 
-        aiRequest.setDiseases(diseases.stream().map(d -> {
-            AgentDocumentGenerateDTO.DiseaseInfo info = new AgentDocumentGenerateDTO.DiseaseInfo();
-            info.setCode(d.getCode());
-            info.setName(d.getName());
-            info.setDegree(d.getDegree());
-            return info;
-        }).collect(Collectors.toList()));
-
-        aiRequest.setDiagnoses(diagnoses.stream().map(d -> {
-            AgentDocumentGenerateDTO.DiagnoseInfo info = new AgentDocumentGenerateDTO.DiagnoseInfo();
-            info.setCode(d.getCode());
-            info.setName(d.getName());
-            info.setDose(d.getDose());
-            info.setTime(d.getTime());
-            info.setDays(d.getDays());
-            return info;
-        }).collect(Collectors.toList()));
-
-        // Flask AI 서버 호출
-        String medicalCertificate = callAiGenerateApi(aiRequest);
+        // Python 진단서 에이전트 호출 → 실패 시 기본 템플릿으로 폴백
+        String medicalCertificate = certificateAgentClient.generate(agentRequest)
+                .map(r -> r.getMedicalCertificate())
+                .filter(s -> s != null && !s.isBlank())
+                .orElseGet(() -> buildDefaultCertificateTemplate(agentRequest));
 
         // 새 토큰 발급
         String accessToken = jwtTokenProvider.generateAccessToken(username);
@@ -353,30 +346,7 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
         log.info("진단서 저장 완료 - historyId: {}, feedbackType: {}", historyId, feedbackType);
     }
 
-    private String callAiGenerateApi(AgentDocumentGenerateDTO request) {
-        String url = aiApiBaseUrl + "/api/ai/document/generate";
-
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<AgentDocumentGenerateDTO> entity = new HttpEntity<>(request, headers);
-
-            @SuppressWarnings("rawtypes")
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                Object certificate = response.getBody().get("medicalCertificate");
-                return certificate != null ? certificate.toString() : "";
-            }
-        } catch (Exception e) {
-            log.warn("AI 진단서 생성 API 호출 실패 ({}): {}", url, e.getMessage());
-        }
-
-        // AI 서버 미응답 시 기본 템플릿 반환
-        return buildDefaultCertificateTemplate(request);
-    }
-
-    private String buildDefaultCertificateTemplate(AgentDocumentGenerateDTO req) {
+    private String buildDefaultCertificateTemplate(CertificateAgentRequest req) {
         StringBuilder sb = new StringBuilder();
         sb.append("【 진 단 서 】\n\n");
         sb.append("환자명: ").append(req.getPatientName()).append("\n");
@@ -389,7 +359,7 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
 
         if (req.getDiseases() != null && !req.getDiseases().isEmpty()) {
             sb.append("【 상병명 】\n");
-            for (AgentDocumentGenerateDTO.DiseaseInfo d : req.getDiseases()) {
+            for (CertificateAgentRequest.DiseaseInfo d : req.getDiseases()) {
                 sb.append(" - [").append(d.getCode()).append("] ").append(d.getName());
                 if (d.getDegree() != null && !d.getDegree().isBlank()) {
                     sb.append(" (").append(d.getDegree()).append(")");
@@ -401,7 +371,7 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
 
         if (req.getDiagnoses() != null && !req.getDiagnoses().isEmpty()) {
             sb.append("【 처방 내역 】\n");
-            for (AgentDocumentGenerateDTO.DiagnoseInfo d : req.getDiagnoses()) {
+            for (CertificateAgentRequest.DiagnoseInfo d : req.getDiagnoses()) {
                 sb.append(" - [").append(d.getCode()).append("] ").append(d.getName())
                         .append(" ").append(d.getDose()).append("mg")
                         .append(" 1일 ").append(d.getTime()).append("회")

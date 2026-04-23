@@ -32,6 +32,8 @@ public class AgentController {
             @RequestBody PrescriptionRecommendRequestDTO request) {
         try {
             return ResponseEntity.ok(agentService.recommendPrescription(request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (EntityNotFoundException e) {
             return ResponseEntity.notFound().build();
         }

@@ -11,5 +11,18 @@ import lombok.Data;
 public class PrescriptionRecommendRequestDTO {
 
     @JsonProperty("history_diagnose_id")
-    private int historyDiagnoseId;
+    private Integer historyDiagnoseId;
+
+    @JsonProperty("history_id")
+    private Integer historyId;
+
+    /**
+     * (선택) Arango visits 조회용 환자/내원 식별자.
+     * 예: 530524502 또는 VISIT_530524502
+     */
+    @JsonProperty("arango_patient_id")
+    private String arangoPatientId;
+
+    @JsonProperty("use_example_context")
+    private Boolean useExampleContext;
 }

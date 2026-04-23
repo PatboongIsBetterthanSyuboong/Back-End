@@ -30,6 +30,8 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class RecommendedPrescriptionItemDTO {
 
+    private int id;
+
     private int rank;
 
     @JsonProperty("prescription_code")
@@ -42,4 +44,10 @@ public class RecommendedPrescriptionItemDTO {
 
     @JsonProperty("confidence_score")
     private double confidenceScore;
+
+    private int dose;
+
+    private int time;
+
+    private int days;
 }

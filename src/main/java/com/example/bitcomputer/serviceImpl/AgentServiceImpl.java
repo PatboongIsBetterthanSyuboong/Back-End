@@ -4,6 +4,8 @@ import com.example.bitcomputer.Repository.HistoryDiagnoseRepository;
 import com.example.bitcomputer.Repository.HistoryDiseaseRepository;
 import com.example.bitcomputer.Repository.HistoryRepository;
 import com.example.bitcomputer.Repository.PatientRepository;
+import com.example.bitcomputer.Repository.DiagnoseRepository;
+import com.example.bitcomputer.entity.Diagnose;
 import com.example.bitcomputer.entity.History;
 import com.example.bitcomputer.entity.HistoryDiagnose;
 import com.example.bitcomputer.entity.HistoryDisease;
@@ -16,11 +18,14 @@ import com.example.bitcomputer.model.PrescriptionRecommendResponseDTO;
 import com.example.bitcomputer.model.RecommendedPrescriptionItemDTO;
 import com.example.bitcomputer.service.AgentService;
 import com.example.bitcomputer.service.HistoryService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,7 +45,9 @@ public class AgentServiceImpl implements AgentService {
     private final HistoryRepository historyRepository;
     private final HistoryDiseaseRepository historyDiseaseRepository;
     private final PatientRepository patientRepository;
+    private final DiagnoseRepository diagnoseRepository;
     private final PrescriptionAgentClient prescriptionAgentClient;
+    private final ObjectMapper objectMapper;
 
     @Value("${ai.prescription-agent.fetch-top-rx-from-arango:true}")
     private boolean fetchTopRxFromArango;
@@ -48,29 +55,31 @@ public class AgentServiceImpl implements AgentService {
     @Value("${ai.prescription-agent.arango-top-rx-limit:80}")
     private int arangoTopRxLimit;
 
+    @Value("${ai.prescription-agent.example-context-path:../GraphDB/langchain_graph_qa/patient_ctx.example.json}")
+    private String exampleContextPath;
+
     public AgentServiceImpl(
             HistoryService historyService,
             HistoryDiagnoseRepository historyDiagnoseRepository,
             HistoryRepository historyRepository,
             HistoryDiseaseRepository historyDiseaseRepository,
             PatientRepository patientRepository,
+            DiagnoseRepository diagnoseRepository,
+            ObjectMapper objectMapper,
             PrescriptionAgentClient prescriptionAgentClient) {
         this.historyService = historyService;
         this.historyDiagnoseRepository = historyDiagnoseRepository;
         this.historyRepository = historyRepository;
         this.historyDiseaseRepository = historyDiseaseRepository;
         this.patientRepository = patientRepository;
+        this.diagnoseRepository = diagnoseRepository;
+        this.objectMapper = objectMapper;
         this.prescriptionAgentClient = prescriptionAgentClient;
     }
 
     @Override
     public PrescriptionRecommendResponseDTO recommendPrescription(PrescriptionRecommendRequestDTO request) {
-        HistoryDiagnose hd = historyDiagnoseRepository.findById(request.getHistoryDiagnoseId())
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "HistoryDiagnose not found with id " + request.getHistoryDiagnoseId()));
-        History currentHistory = historyRepository.findById(hd.getHistoryId())
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "History not found with id " + hd.getHistoryId()));
+        History currentHistory = resolveCurrentHistory(request);
         Patient patient = patientRepository.findById(currentHistory.getPatientId())
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Patient not found with id " + currentHistory.getPatientId()));
@@ -82,7 +91,12 @@ public class AgentServiceImpl implements AgentService {
         List<HistoryDTO> histories = (List<HistoryDTO>) historyBundle.getOrDefault(
                 "histories", Collections.emptyList());
 
-        PrescriptionAgentRequest agentRequest = buildAgentRequest(patient, currentHistory, histories);
+        PrescriptionAgentRequest agentRequest = buildAgentRequest(
+                patient,
+                currentHistory,
+                histories,
+                request.getArangoPatientId());
+        applyExampleContextIfRequested(agentRequest, request);
 
         List<RecommendedPrescriptionItemDTO> recommended = callAgentAndMap(agentRequest);
 
@@ -90,6 +104,68 @@ public class AgentServiceImpl implements AgentService {
                 .historyDiagnoseId(request.getHistoryDiagnoseId())
                 .recommendedPrescriptions(recommended)
                 .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyExampleContextIfRequested(
+            PrescriptionAgentRequest agentRequest,
+            PrescriptionRecommendRequestDTO request) {
+        if (!Boolean.TRUE.equals(request.getUseExampleContext())) {
+            return;
+        }
+        try {
+            Path path = Path.of(exampleContextPath);
+            if (!path.isAbsolute()) {
+                path = Path.of("").toAbsolutePath().resolve(path).normalize();
+            }
+            if (!Files.exists(path)) {
+                log.warn("example context 파일이 없어 기본 컨텍스트를 사용합니다: {}", path);
+                return;
+            }
+
+            Map<String, Object> ctx = objectMapper.readValue(path.toFile(), Map.class);
+            Object patientId = ctx.get("patient_id");
+            if (patientId != null) {
+                agentRequest.setPatientId(String.valueOf(patientId));
+            }
+            if (ctx.get("symptoms") != null) {
+                agentRequest.setSymptoms(String.valueOf(ctx.get("symptoms")));
+            }
+            if (ctx.get("history") != null) {
+                agentRequest.setHistory(String.valueOf(ctx.get("history")));
+            }
+            if (ctx.get("similar_outcomes") != null) {
+                agentRequest.setSimilarOutcomes(String.valueOf(ctx.get("similar_outcomes")));
+            }
+            Object topRx = ctx.get("top_rx");
+            if (topRx instanceof List<?> topRxList) {
+                agentRequest.setTopRx((List<Map<String, Object>>) topRxList);
+            }
+            Object mentionLinks = ctx.get("mention_links");
+            if (mentionLinks instanceof List<?> mentionList) {
+                agentRequest.setMentionLinks((List<Map<String, Object>>) mentionList);
+            }
+            log.info("AI 추천에 example context 적용: {}", path);
+        } catch (Exception e) {
+            log.warn("example context 적용 실패, 기본 컨텍스트 사용: {}", e.getMessage());
+        }
+    }
+
+    private History resolveCurrentHistory(PrescriptionRecommendRequestDTO request) {
+        if (request.getHistoryId() != null) {
+            return historyRepository.findById(request.getHistoryId())
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "History not found with id " + request.getHistoryId()));
+        }
+        if (request.getHistoryDiagnoseId() != null) {
+            HistoryDiagnose hd = historyDiagnoseRepository.findById(request.getHistoryDiagnoseId())
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "HistoryDiagnose not found with id " + request.getHistoryDiagnoseId()));
+            return historyRepository.findById(hd.getHistoryId())
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "History not found with id " + hd.getHistoryId()));
+        }
+        throw new IllegalArgumentException("history_id 또는 history_diagnose_id 중 하나는 필수입니다.");
     }
 
     /**
@@ -105,9 +181,12 @@ public class AgentServiceImpl implements AgentService {
      * </ul>
      */
     private PrescriptionAgentRequest buildAgentRequest(
-            Patient patient, History current, List<HistoryDTO> histories) {
+            Patient patient,
+            History current,
+            List<HistoryDTO> histories,
+            String arangoPatientIdOverride) {
 
-        String patientIdForGraph = resolvePatientIdForGraph(patient);
+        String patientIdForGraph = resolvePatientIdForGraph(patient, arangoPatientIdOverride);
 
         List<Map<String, Object>> topRx = buildTopRx(histories);
         String historyText = buildHistoryText(current, histories);
@@ -124,7 +203,10 @@ public class AgentServiceImpl implements AgentService {
                 .build();
     }
 
-    private String resolvePatientIdForGraph(Patient patient) {
+    private String resolvePatientIdForGraph(Patient patient, String override) {
+        if (override != null && !override.isBlank()) {
+            return override.trim();
+        }
         // TODO(매핑): 실제 EMR 의 "내원번호" 컬럼이 추가되면 그 값을 우선 사용하도록 바꿀 것.
         //   지금은 identityNumber → patient.id 순으로 후보를 넘기고, Python 쪽에서
         //   내원번호_norm / visit_id / _key 중 어느 키로든 매칭되게 되어 있음.
@@ -239,14 +321,80 @@ public class AgentServiceImpl implements AgentService {
         }
         List<RecommendedPrescriptionItemDTO> out = new ArrayList<>(resp.getPrescriptions().size());
         for (PrescriptionAgentResponse.Item item : resp.getPrescriptions()) {
+            Diagnose matched = findDiagnoseMaster(item);
             out.add(RecommendedPrescriptionItemDTO.builder()
+                    .id(matched != null ? matched.getId() : 0)
                     .rank(item.getRank())
                     .prescriptionCode(item.getPrescriptionCode())
                     .prescriptionName(item.getName())
                     .reason(item.getReason())
                     .confidenceScore(0.0) // Python 쪽 스키마엔 없음. 추후 top_rx 빈도 기반으로 채울 예정.
+                    .dose(matched != null ? matched.getDose() : 0)
+                    .time(matched != null ? matched.getTime() : 0)
+                    .days(matched != null ? matched.getDays() : 0)
                     .build());
         }
         return out;
+    }
+
+    private Diagnose findDiagnoseMaster(PrescriptionAgentResponse.Item item) {
+        if (item.getPrescriptionCode() != null && !item.getPrescriptionCode().isBlank()) {
+            Optional<Diagnose> byCode = diagnoseRepository.findByCode(item.getPrescriptionCode().trim());
+            if (byCode.isPresent()) {
+                return byCode.get();
+            }
+        }
+        if (item.getName() != null && !item.getName().isBlank()) {
+            Optional<Diagnose> byName = diagnoseRepository.findByName(item.getName().trim());
+            if (byName.isPresent()) {
+                return byName.get();
+            }
+        }
+        return createDiagnoseMasterFromAgentItem(item);
+    }
+
+    private Diagnose createDiagnoseMasterFromAgentItem(PrescriptionAgentResponse.Item item) {
+        String code = normalizeText(item.getPrescriptionCode());
+        String name = normalizeText(item.getName());
+
+        if (code == null && name == null) {
+            return null;
+        }
+        if (code == null) {
+            code = "AUTO-" + Math.abs(name.hashCode());
+        }
+        if (name == null) {
+            name = code;
+        }
+
+        try {
+            Diagnose entity = new Diagnose();
+            entity.setCode(code);
+            entity.setName(name);
+            entity.setDose(0);
+            entity.setTime(0);
+            entity.setDays(0);
+            Diagnose saved = diagnoseRepository.save(entity);
+            log.info("AI 추천 처방을 diagnose 마스터에 자동 등록 - id={} code={} name={}", saved.getId(), code, name);
+            return saved;
+        } catch (Exception e) {
+            log.warn("AI 추천 처방 diagnose 자동 등록 실패 - code={} name={} err={}", code, name, e.getMessage());
+            Optional<Diagnose> byCode = diagnoseRepository.findByCode(code);
+            if (byCode.isPresent()) {
+                return byCode.get();
+            }
+            return diagnoseRepository.findByName(name).orElse(null);
+        }
+    }
+
+    private String normalizeText(String v) {
+        if (v == null) {
+            return null;
+        }
+        String t = v.trim();
+        if (t.isEmpty() || "미기재".equals(t)) {
+            return null;
+        }
+        return t;
     }
 }

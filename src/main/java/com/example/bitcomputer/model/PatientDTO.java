@@ -11,6 +11,7 @@ public class PatientDTO {
     String name;
     String phoneNumber;
     String identityNumber;
+    String visitNumber;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     Date birth;

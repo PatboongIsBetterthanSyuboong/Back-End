@@ -18,6 +18,7 @@ import java.util.Map;
 
 import java.util.Date;
 import java.util.List;
+import java.util.LinkedHashMap;
 
 @RestController
 @RequestMapping("/api/patients")
@@ -93,6 +94,33 @@ public class PatientController {
         }
 
         return ResponseEntity.ok(employee.getRole());
+    }
+
+    @GetMapping("/get_me")
+    public ResponseEntity<Map<String, Object>> getMe(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String token = authorizationHeader.substring(7);
+        if (!jwtTokenProvider.validateToken(token)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String username = jwtTokenProvider.extractUsername(token);
+        Employee employee = employeeRepository.findByUsername(username);
+        if (employee == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("id", employee.getId());
+        payload.put("name", employee.getName());
+        payload.put("deptId", employee.getDeptId());
+        payload.put("role", employee.getRole());
+        payload.put("username", employee.getUsername());
+        return ResponseEntity.ok(payload);
     }
 }
 

@@ -113,6 +113,52 @@ public class WaitingServiceImpl implements WaitingService {
         return new TokenInfo("Bearer", accessToken, refreshToken);
     }
 
+    @Override
+    @Transactional
+    public TokenInfo updateWaitingStateByWaitingId(int waitingId) {
+        Waiting waiting = waitingRepository.findById(waitingId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 대기 정보를 찾을 수 없습니다."));
+
+        if ("completed".equals(waiting.getState())) {
+            throw new IllegalArgumentException("이미 완료된 진료입니다.");
+        }
+
+        waiting.setState("completed");
+        Waiting updatedWaiting = waitingRepository.save(waiting);
+
+        String patientIdStr = String.valueOf(updatedWaiting.getPatientId());
+        String accessToken = jwtTokenProvider.generateAccessToken(patientIdStr);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(patientIdStr);
+        return new TokenInfo("Bearer", accessToken, refreshToken);
+    }
+
+    @Override
+    @Transactional
+    public TokenInfo updateWaitingStateToHoldByWaitingId(int waitingId) {
+        Waiting waiting = waitingRepository.findById(waitingId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 대기 정보를 찾을 수 없습니다."));
+
+        if ("completed".equals(waiting.getState())) {
+            throw new IllegalArgumentException("이미 완료된 진료는 보류로 변경할 수 없습니다.");
+        }
+
+        waiting.setState("hold");
+        Waiting updatedWaiting = waitingRepository.save(waiting);
+
+        String patientIdStr = String.valueOf(updatedWaiting.getPatientId());
+        String accessToken = jwtTokenProvider.generateAccessToken(patientIdStr);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(patientIdStr);
+        return new TokenInfo("Bearer", accessToken, refreshToken);
+    }
+
+    @Override
+    @Transactional
+    public void deleteWaitingByWaitingId(int waitingId) {
+        Waiting waiting = waitingRepository.findById(waitingId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 대기 정보를 찾을 수 없습니다."));
+        waitingRepository.delete(waiting);
+    }
+
     private WaitingDTO convertToDTO(Waiting waiting) {
         WaitingDTO dto = new WaitingDTO();
         dto.setId(waiting.getId());

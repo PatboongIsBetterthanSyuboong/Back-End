@@ -10,4 +10,7 @@ public interface WaitingService {
     List<WaitingDTO> getWaitingList();
     TokenInfo updateWaitingState(int patientId);
     TokenInfo updateWaitingStateToHold(int patientId);
+    TokenInfo updateWaitingStateByWaitingId(int waitingId);
+    TokenInfo updateWaitingStateToHoldByWaitingId(int waitingId);
+    void deleteWaitingByWaitingId(int waitingId);
 }

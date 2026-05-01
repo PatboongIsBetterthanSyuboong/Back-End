@@ -25,6 +25,9 @@ public class Patient {
     
     @Column(name = "identity_number", nullable = false, unique = true)
     private String identityNumber;
+
+    @Column(name = "visit_number")
+    private String visitNumber;
     
     @Column(name = "birth", nullable = false)
     private LocalDate birth;

@@ -92,7 +92,7 @@ class WaitingServiceImplTest {
             waiting.setId(1);
             waiting.setPatientId(1);
             waiting.setState("waiting");
-            when(waitingRepository.findByPatientIdAndState(eq(1), eq("waiting"))) .thenReturn(Optional.of(waiting));
+            when(waitingRepository.findFirstByPatientIdOrderByIdDesc(eq(1))).thenReturn(Optional.of(waiting));
             when(waitingRepository.save(any(Waiting.class))).thenReturn(waiting);
             when(jwtTokenProvider.generateAccessToken(anyString())).thenReturn("a");
             when(jwtTokenProvider.generateRefreshToken(anyString())).thenReturn("r");
@@ -103,7 +103,7 @@ class WaitingServiceImplTest {
         @Test
         @DisplayName("대기 정보 없으면 예외")
         void update_not_exist_throw() {
-            when(waitingRepository.findByPatientIdAndState(anyInt(), any())).thenReturn(Optional.empty());
+            when(waitingRepository.findFirstByPatientIdOrderByIdDesc(anyInt())).thenReturn(Optional.empty());
             assertThatThrownBy(() -> waitingService.updateWaitingState(99))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("대기 정보를 찾을 수 없습니다");

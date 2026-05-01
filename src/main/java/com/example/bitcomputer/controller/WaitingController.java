@@ -84,6 +84,21 @@ public class WaitingController {
         }
     }
 
+    @PutMapping("entry/{waitingId}/complete")
+    public ResponseEntity<TokenInfo> updateWaitingEntryState(@PathVariable("waitingId") int waitingId) {
+        try {
+            if (waitingId <= 0) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            }
+            TokenInfo tokenInfo = waitingService.updateWaitingStateByWaitingId(waitingId);
+            return ResponseEntity.ok(tokenInfo);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
     @PutMapping("{patientid}/hold")
     public ResponseEntity<TokenInfo> updateWaitingStateToHold(@PathVariable("patientid") int patientid) {
         try {
@@ -105,6 +120,36 @@ public class WaitingController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PutMapping("entry/{waitingId}/hold")
+    public ResponseEntity<TokenInfo> updateWaitingEntryStateToHold(@PathVariable("waitingId") int waitingId) {
+        try {
+            if (waitingId <= 0) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            }
+            TokenInfo tokenInfo = waitingService.updateWaitingStateToHoldByWaitingId(waitingId);
+            return ResponseEntity.ok(tokenInfo);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @DeleteMapping("entry/{waitingId}")
+    public ResponseEntity<Void> deleteWaitingEntry(@PathVariable("waitingId") int waitingId) {
+        try {
+            if (waitingId <= 0) {
+                return ResponseEntity.badRequest().build();
+            }
+            waitingService.deleteWaitingByWaitingId(waitingId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

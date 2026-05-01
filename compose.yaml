@@ -16,5 +16,16 @@ services:
     ports:
       - "6379:6379"
 
+  arangodb:
+    image: arangodb:latest
+    container_name: bit-arangodb
+    environment:
+      - ARANGO_ROOT_PASSWORD=Dd905925@
+    ports:
+      - "8529:8529"
+    volumes:
+      - arango-data:/var/lib/arangodb3
+
 volumes:
   mysql-data:
+  arango-data:

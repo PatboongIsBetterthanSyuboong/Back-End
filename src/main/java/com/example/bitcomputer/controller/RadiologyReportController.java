@@ -87,28 +87,43 @@ public class RadiologyReportController {
                         .body(Map.of("error", "JPG, JPEG, PNG, DICOM 파일만 업로드 가능합니다."));
             }
             
-            // 2. 이미지를 images/{patientId}/original/ 폴더에 저장
-            String folderId = String.valueOf(patientId);
+            // 2. 영상판독 요청을 먼저 DB에 저장하여 radiologyRequestId 생성
+            // 임시 경로로 RadiologyReport 생성
+            RadiologyReportRequestDTO tempRequest = new RadiologyReportRequestDTO();
+            tempRequest.setRadiologyRequestId(0);
+            tempRequest.setPatientId(patientId);
+            tempRequest.setEmployeeId(employeeId);
+            tempRequest.setDeptId(deptId);
+            tempRequest.setSymptomDetail(symptomDetail);
+            tempRequest.setMemo(memo);
+            tempRequest.setEntryDate(java.sql.Date.valueOf(entryDate));
+            tempRequest.setDetailImageAddress("temp/temp_" + java.util.UUID.randomUUID().toString()); // 임시 경로
+            
+            // 영상판독 요청 저장하여 radiologyRequestId 받기
+            int radiologyRequestId = radiologyReportService.createRadiologyReportRequest(tempRequest);
+            
+            // 3. radiologyRequestId로 폴더를 만들어 이미지 저장 (영상판독 요청별 고유 폴더)
+            String folderId = String.valueOf(radiologyRequestId);
             String imageRelativePath = imageStorageUtil.saveImage(file, folderId, "original");
             
-            // 3. RadiologyReportRequestDTO 생성
+            // 4. RadiologyReportRequestDTO 생성 (실제 이미지 경로 포함)
             RadiologyReportRequestDTO request = new RadiologyReportRequestDTO();
-            request.setRadiologyRequestId(0); // DB에서 자동 생성
+            request.setRadiologyRequestId(radiologyRequestId);
             request.setPatientId(patientId);
             request.setEmployeeId(employeeId);
             request.setDeptId(deptId);
             request.setSymptomDetail(symptomDetail);
             request.setMemo(memo);
-            
-            // LocalDate를 Date로 변환
-            Date entryDateAsDate = java.sql.Date.valueOf(entryDate);
-            request.setEntryDate(entryDateAsDate);
+            request.setEntryDate(java.sql.Date.valueOf(entryDate));
             request.setDetailImageAddress(imageRelativePath);
             
-            // 4. AI 분석 요청 (Flask API 호출)
+            // 5. 이미지 경로 업데이트 (DB 업데이트)
+            radiologyReportService.updateImagePath(radiologyRequestId, imageRelativePath);
+            
+            // 6. AI 분석 요청 (Flask API 호출)
             RadiologyReportResponseDTO response = radiologyReportService.processRadiologyReport(request);
             
-            // 5. 응답 반환 (오버레이 이미지 URL 포함)
+            // 7. 응답 반환 (오버레이 이미지 URL 포함)
             return ResponseEntity.ok(response);
             
         } catch (org.springframework.web.server.ResponseStatusException e) {

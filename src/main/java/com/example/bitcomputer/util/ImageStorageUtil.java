@@ -48,9 +48,9 @@ public class ImageStorageUtil {
      * 이미지를 저장하고 상대 경로를 반환
      * 
      * @param file 업로드된 이미지 파일
-     * @param folderId 저장할 폴더 ID (예: 환자 ID 또는 요청 ID)
+     * @param folderId 저장할 폴더 ID (영상판독 요청 ID - radiologyRequestId)
      * @param subFolder "original" 또는 "overlay"
-     * @return 저장된 이미지의 상대 경로 (예: "images/1/original/view1_frontal.jpg")
+     * @return 저장된 이미지의 상대 경로 (예: "images/123/original/view1_frontal.jpg")
      */
     public String saveImage(MultipartFile file, String folderId, String subFolder) throws IOException {
         // 프로젝트 루트 기준으로 이미지 폴더 경로 생성
@@ -104,5 +104,53 @@ public class ImageStorageUtil {
         } catch (Exception e) {
             return false;
         }
+    }
+    
+    /**
+     * 폴더명 변경 (예: 임시 UUID 폴더를 radiologyRequestId로 변경)
+     * 
+     * @param oldFolderId 변경 전 폴더 ID
+     * @param newFolderId 변경 후 폴더 ID
+     * @return 변경 성공 여부
+     */
+    public boolean renameFolder(String oldFolderId, String newFolderId) {
+        try {
+            Path projectRoot = getProjectRoot();
+            Path oldFolderPath = projectRoot.resolve("images").resolve(oldFolderId);
+            Path newFolderPath = projectRoot.resolve("images").resolve(newFolderId);
+            
+            // 기존 폴더가 없으면 실패
+            if (!Files.exists(oldFolderPath) || !Files.isDirectory(oldFolderPath)) {
+                return false;
+            }
+            
+            // 새 폴더가 이미 존재하면 실패
+            if (Files.exists(newFolderPath)) {
+                return false;
+            }
+            
+            // 폴더명 변경
+            Files.move(oldFolderPath, newFolderPath, StandardCopyOption.ATOMIC_MOVE);
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+    
+    /**
+     * 이미지 경로의 폴더 ID 부분을 변경
+     * 
+     * @param oldPath 변경 전 경로 (예: "images/oldId/original/image.jpg")
+     * @param newFolderId 새로운 폴더 ID
+     * @return 변경된 경로 (예: "images/newId/original/image.jpg")
+     */
+    public String updatePathFolderId(String oldPath, String newFolderId) {
+        // 경로 형식: images/{folderId}/{subFolder}/{filename}
+        String[] parts = oldPath.replace("\\", "/").split("/");
+        if (parts.length >= 4 && parts[0].equals("images")) {
+            parts[1] = newFolderId;
+            return String.join("/", parts);
+        }
+        return oldPath;
     }
 }

@@ -1,0 +1,80 @@
+package com.example.bitcomputer.serviceImpl;
+
+import com.example.bitcomputer.model.PrescriptionAgentRequest;
+import com.example.bitcomputer.model.PrescriptionAgentResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Optional;
+
+/**
+ * Python(FastAPI) 의 prescription_api 서비스를 호출하는 HTTP 클라이언트.
+ *
+ * <p>ArangoDB 그래프를 포함한 LLM 프롬프트는 Python 측에서 조립하므로, 여기서는
+ * {@link PrescriptionAgentRequest} 를 POST 하고 {@link PrescriptionAgentResponse}
+ * 를 돌려받기만 한다. Python 서버가 꺼져 있거나 LLM 호출이 실패하면
+ * {@link Optional#empty()} 를 반환하여 상위 서비스가 폴백을 택할 수 있게 한다.
+ */
+@Slf4j
+@Component
+public class PrescriptionAgentClient {
+
+    private final RestTemplate restTemplate;
+
+    @Value("${ai.prescription-agent.base-url:http://localhost:8001}")
+    private String baseUrl;
+
+    @Value("${ai.prescription-agent.path:/api/agent/prescription/recommend}")
+    private String path;
+
+    public PrescriptionAgentClient(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    /**
+     * Python 에이전트에 처방 추천을 요청한다.
+     *
+     * @param request Spring 이 MySQL + (선택) Arango 에서 만든 feature 번들
+     * @return LLM 이 생성한 3건 추천. 호출 실패 시 {@link Optional#empty()}.
+     */
+    public Optional<PrescriptionAgentResponse> recommend(PrescriptionAgentRequest request) {
+        String url = baseUrl + path;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
+            HttpEntity<PrescriptionAgentRequest> entity = new HttpEntity<>(request, headers);
+
+            ResponseEntity<PrescriptionAgentResponse> response = restTemplate.exchange(
+                    url, HttpMethod.POST, entity, PrescriptionAgentResponse.class);
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                log.info(
+                        "Python 처방 에이전트 호출 성공 - patient_id={} used_arango={} top_rx_count={}",
+                        request.getPatientId(),
+                        response.getBody().getUsedArangoTopRx(),
+                        response.getBody().getArangoTopRxCount());
+                return Optional.of(response.getBody());
+            }
+            log.warn(
+                    "Python 처방 에이전트 비정상 응답 - status={} body={}",
+                    response.getStatusCode(), response.getBody());
+            return Optional.empty();
+        } catch (RestClientException e) {
+            log.warn("Python 처방 에이전트 호출 실패 ({}): {}", url, e.getMessage());
+            return Optional.empty();
+        } catch (Exception e) {
+            log.error("Python 처방 에이전트 호출 중 예상치 못한 오류 ({})", url, e);
+            return Optional.empty();
+        }
+    }
+}

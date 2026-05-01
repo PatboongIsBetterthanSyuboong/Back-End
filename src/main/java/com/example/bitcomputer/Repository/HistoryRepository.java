@@ -18,5 +18,20 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
     List<History> searchHistories(@Param("patientId") int patientId,
                                   @Param("startDate") LocalDateTime startDate,
                                   @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT h FROM History h WHERE h.patientId IN :patientIds " +
+            "AND (:startDate IS NULL OR h.entryDate >= :startDate) " +
+            "AND (:endDate IS NULL OR h.entryDate <= :endDate) " +
+            "ORDER BY h.entryDate DESC")
+    List<History> searchHistoriesByPatientIds(@Param("patientIds") List<Integer> patientIds,
+                                              @Param("startDate") LocalDateTime startDate,
+                                              @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT h FROM History h " +
+            "WHERE (:startDate IS NULL OR h.entryDate >= :startDate) " +
+            "AND (:endDate IS NULL OR h.entryDate <= :endDate) " +
+            "ORDER BY h.entryDate DESC")
+    List<History> searchAllHistories(@Param("startDate") LocalDateTime startDate,
+                                     @Param("endDate") LocalDateTime endDate);
 }
 

@@ -32,14 +32,33 @@ public class PatientServiceImpl implements PatientService {
     public PatientDTO createPatient(PatientDTO request) {
         validateRequest(request);
 
-        if (patientRepository.existsById(request.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 환자입니다.");
+        if (patientRepository.existsByIdentityNumber(request.getIdentityNumber())) {
+            Patient existing = patientRepository.findByIdentityNumber(request.getIdentityNumber());
+            boolean changed = false;
+
+            // 같은 환자 재등록 시 최신 입력값을 보정해서 재사용한다.
+            if (StringUtils.hasText(request.getVisitNumber())
+                    && !request.getVisitNumber().equals(existing.getVisitNumber())) {
+                existing.setVisitNumber(request.getVisitNumber());
+                changed = true;
+            }
+            if (StringUtils.hasText(request.getPhoneNumber())
+                    && !request.getPhoneNumber().equals(existing.getPhoneNumber())) {
+                existing.setPhoneNumber(request.getPhoneNumber());
+                changed = true;
+            }
+
+            if (changed) {
+                existing = patientRepository.save(existing);
+            }
+            return mapToDto(existing);
         }
 
         Patient patient = new Patient();
         patient.setName(request.getName());
         patient.setPhoneNumber(request.getPhoneNumber());
         patient.setIdentityNumber(request.getIdentityNumber());
+        patient.setVisitNumber(request.getVisitNumber());
         patient.setBirth(convertToLocalDate(request.getBirth()));
         patient.setGender(request.getGender());
 
@@ -86,6 +105,9 @@ public class PatientServiceImpl implements PatientService {
         if (!StringUtils.hasText(request.getIdentityNumber())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "주민등록번호는 필수입니다.");
         }
+        if (!StringUtils.hasText(request.getVisitNumber())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "내원번호는 필수입니다.");
+        }
         if (request.getBirth() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "생년월일은 필수입니다.");
         }
@@ -100,6 +122,7 @@ public class PatientServiceImpl implements PatientService {
         dto.setName(patient.getName());
         dto.setPhoneNumber(patient.getPhoneNumber());
         dto.setIdentityNumber(patient.getIdentityNumber());
+        dto.setVisitNumber(patient.getVisitNumber());
         dto.setBirth(convertToDate(patient.getBirth()));
         dto.setGender(patient.getGender());
         return dto;

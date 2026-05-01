@@ -50,13 +50,15 @@ class DiseaseControllerTest {
             dto.setId(1);
             dto.setCode("J00");
             dto.setName("급성 비인두염");
+            dto.setNameEn("Acute nasopharyngitis");
             when(diseaseService.getById(eq(1))).thenReturn(dto);
 
             mockMvc.perform(get("/api/diseases/1"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(1))
                     .andExpect(jsonPath("$.code").value("J00"))
-                    .andExpect(jsonPath("$.name").value("급성 비인두염"));
+                    .andExpect(jsonPath("$.name").value("급성 비인두염"))
+                    .andExpect(jsonPath("$.nameEn").value("Acute nasopharyngitis"));
         }
 
         @Test

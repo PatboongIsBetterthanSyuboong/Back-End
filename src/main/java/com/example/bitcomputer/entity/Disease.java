@@ -20,4 +20,7 @@ public class Disease {
     
     @Column(name = "name", nullable = false)
     private String name;
+
+    @Column(name = "name_en", nullable = true, columnDefinition = "TEXT")
+    private String nameEn;
 }

@@ -49,7 +49,7 @@ public class DiseaseServiceImpl implements DiseaseService {
         );
 
         Page<Disease> result = diseaseRepository
-                .findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(codeQuery, nameQuery, pageable);
+                .searchByCodeOrNameOrNameEn(codeQuery, nameQuery, pageable);
 
         List<DiseaseDTO> items = result.getContent()
                 .stream()
@@ -82,13 +82,15 @@ public class DiseaseServiceImpl implements DiseaseService {
                 
                 // code 컬럼 (0번 인덱스)
                 Cell codeCell = row.getCell(0);
-                // name 컬럼 (1번 인덱스)
+                // name 컬럼 (1번 인덱스), 상병명(영문) (2번 인덱스, 선택)
                 Cell nameCell = row.getCell(1);
-                
+                Cell nameEnCell = row.getCell(2);
+
                 if (codeCell == null || nameCell == null) continue;
 
                 String code = getCellValueAsString(codeCell);
                 String name = getCellValueAsString(nameCell);
+                String nameEn = nameEnCell != null ? getCellValueAsString(nameEnCell) : null;
 
                 if (code == null || code.trim().isEmpty() ||
                     name == null || name.trim().isEmpty()) {
@@ -103,6 +105,9 @@ public class DiseaseServiceImpl implements DiseaseService {
                     Disease disease = new Disease();
                     disease.setCode(code.trim());
                     disease.setName(name.trim());
+                    if (nameEn != null && !nameEn.trim().isEmpty()) {
+                        disease.setNameEn(nameEn.trim());
+                    }
                     diseases.add(disease);
                 }
             }
@@ -146,6 +151,7 @@ public class DiseaseServiceImpl implements DiseaseService {
         dto.setId(entity.getId());
         dto.setCode(entity.getCode());
         dto.setName(entity.getName());
+        dto.setNameEn(entity.getNameEn());
         return dto;
     }
 

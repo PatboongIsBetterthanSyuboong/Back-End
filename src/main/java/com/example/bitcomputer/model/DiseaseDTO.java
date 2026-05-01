@@ -7,4 +7,5 @@ public class DiseaseDTO {
     int id;
     String code;
     String name;
+    String nameEn;
 }

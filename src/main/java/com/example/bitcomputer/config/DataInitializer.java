@@ -36,6 +36,35 @@ public class DataInitializer {
         };
     }
 
+    /** JPA ddl-auto=update 가 새 컬럼을 안 만든 기존 DB용 — disease.name_en 보장 (MySQL) */
+    @Bean
+    public CommandLineRunner ensureDiseaseNameEnColumn(JdbcTemplate jdbcTemplate) {
+        return args -> {
+            Integer tables = jdbcTemplate.queryForObject(
+                    """
+                            SELECT COUNT(*) FROM information_schema.TABLES
+                            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'disease'
+                            """,
+                    Integer.class
+            );
+            if (tables == null || tables == 0) {
+                return;
+            }
+            Integer cols = jdbcTemplate.queryForObject(
+                    """
+                            SELECT COUNT(*) FROM information_schema.COLUMNS
+                            WHERE TABLE_SCHEMA = DATABASE()
+                              AND TABLE_NAME = 'disease'
+                              AND COLUMN_NAME = 'name_en'
+                            """,
+                    Integer.class
+            );
+            if (cols != null && cols == 0) {
+                jdbcTemplate.execute("ALTER TABLE disease ADD COLUMN name_en TEXT NULL");
+            }
+        };
+    }
+
     @Bean
     public CommandLineRunner initializeSuperUser(UserRepository userRepository,
                                                  PasswordEncoder passwordEncoder) {

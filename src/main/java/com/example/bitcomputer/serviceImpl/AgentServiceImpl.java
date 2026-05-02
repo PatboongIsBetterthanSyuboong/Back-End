@@ -30,6 +30,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +55,12 @@ public class AgentServiceImpl implements AgentService {
 
     @Value("${ai.prescription-agent.arango-top-rx-limit:80}")
     private int arangoTopRxLimit;
+
+    @Value("${ai.prescription-agent.fetch-cohort-rx-from-arango:true}")
+    private boolean fetchCohortRxFromArango;
+
+    @Value("${ai.prescription-agent.arango-cohort-rx-limit:40}")
+    private int arangoCohortRxLimit;
 
     @Value("${ai.prescription-agent.example-context-path:../GraphDB/langchain_graph_qa/patient_ctx.example.json}")
     private String exampleContextPath;
@@ -91,11 +98,14 @@ public class AgentServiceImpl implements AgentService {
         List<HistoryDTO> histories = (List<HistoryDTO>) historyBundle.getOrDefault(
                 "histories", Collections.emptyList());
 
+        List<String> diseaseCodes = resolveDiseaseCodes(currentHistory, request);
+
         PrescriptionAgentRequest agentRequest = buildAgentRequest(
                 patient,
                 currentHistory,
                 histories,
-                request.getArangoPatientId());
+                request.getArangoPatientId(),
+                diseaseCodes);
         applyExampleContextIfRequested(agentRequest, request);
 
         List<RecommendedPrescriptionItemDTO> recommended = callAgentAndMap(agentRequest);
@@ -124,8 +134,14 @@ public class AgentServiceImpl implements AgentService {
             }
 
             Map<String, Object> ctx = objectMapper.readValue(path.toFile(), Map.class);
+            /*
+             * 화면에서 넘긴 내원번호(arango_patient_id)는 Arango visits 매칭에 직결되므로
+             * 예제 JSON의 patient_id로 덮어쓰지 않는다. (예제는 증상/이력 텍스트용)
+             */
+            boolean hasArangoPatientOverride = request.getArangoPatientId() != null
+                    && !request.getArangoPatientId().isBlank();
             Object patientId = ctx.get("patient_id");
-            if (patientId != null) {
+            if (!hasArangoPatientOverride && patientId != null) {
                 agentRequest.setPatientId(String.valueOf(patientId));
             }
             if (ctx.get("symptoms") != null) {
@@ -134,18 +150,31 @@ public class AgentServiceImpl implements AgentService {
             if (ctx.get("history") != null) {
                 agentRequest.setHistory(String.valueOf(ctx.get("history")));
             }
-            if (ctx.get("similar_outcomes") != null) {
+            /*
+             * arango_patient_id 가 있으면 그래프/MySQL 기반 처방·유사 사례를 쓰는 경로이므로
+             * 예제 파일의 similar_outcomes·top_rx 로 덮어쓰지 않는다. (예제는 증상·이력 텍스트 보조용)
+             */
+            if (!hasArangoPatientOverride && ctx.get("similar_outcomes") != null) {
                 agentRequest.setSimilarOutcomes(String.valueOf(ctx.get("similar_outcomes")));
             }
+            /*
+             * 예제 JSON에 top_rx: []만 있으면 MySQL에서 채운 처방·이후 Arango 보강을 망가뜨리므로
+             * 비어 있을 때는 기존 agentRequest.top_rx 를 유지한다.
+             */
             Object topRx = ctx.get("top_rx");
-            if (topRx instanceof List<?> topRxList) {
+            if (!hasArangoPatientOverride
+                    && topRx instanceof List<?> topRxList
+                    && !topRxList.isEmpty()) {
                 agentRequest.setTopRx((List<Map<String, Object>>) topRxList);
             }
             Object mentionLinks = ctx.get("mention_links");
-            if (mentionLinks instanceof List<?> mentionList) {
+            if (mentionLinks instanceof List<?> mentionList && !mentionList.isEmpty()) {
                 agentRequest.setMentionLinks((List<Map<String, Object>>) mentionList);
             }
-            log.info("AI 추천에 example context 적용: {}", path);
+            log.info(
+                    "AI 추천에 example context 적용: {} (arango_patient_id 지정 시 예제 top_rx·similar_outcomes 미적용: {})",
+                    path,
+                    hasArangoPatientOverride);
         } catch (Exception e) {
             log.warn("example context 적용 실패, 기본 컨텍스트 사용: {}", e.getMessage());
         }
@@ -169,6 +198,30 @@ public class AgentServiceImpl implements AgentService {
     }
 
     /**
+     * 요청 본문의 disease_codes 가 있으면 우선하고, 없으면 현재 진료에 저장된 상병(HistoryDisease) 코드를 사용한다.
+     */
+    private List<String> resolveDiseaseCodes(History current, PrescriptionRecommendRequestDTO request) {
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        if (request.getDiseaseCodes() != null) {
+            for (String c : request.getDiseaseCodes()) {
+                if (c != null && !c.isBlank()) {
+                    out.add(c.trim());
+                }
+            }
+        }
+        if (!out.isEmpty()) {
+            return new ArrayList<>(out);
+        }
+        List<HistoryDisease> rows = historyDiseaseRepository.findByHistoryId(current.getId());
+        for (HistoryDisease d : rows) {
+            if (d.getCode() != null && !d.getCode().isBlank()) {
+                out.add(d.getCode().trim());
+            }
+        }
+        return new ArrayList<>(out);
+    }
+
+    /**
      * MySQL 에서 모은 환자 feature 를 Python / ArangoDB 가 기대하는 스키마로 변환한다.
      *
      * <ul>
@@ -184,7 +237,8 @@ public class AgentServiceImpl implements AgentService {
             Patient patient,
             History current,
             List<HistoryDTO> histories,
-            String arangoPatientIdOverride) {
+            String arangoPatientIdOverride,
+            List<String> diseaseCodes) {
 
         String patientIdForGraph = resolvePatientIdForGraph(patient, arangoPatientIdOverride);
 
@@ -200,6 +254,9 @@ public class AgentServiceImpl implements AgentService {
                 .similarOutcomes("")
                 .fetchTopRxFromArango(fetchTopRxFromArango)
                 .arangoTopRxLimit(arangoTopRxLimit)
+                .diseaseCodes(diseaseCodes.isEmpty() ? null : diseaseCodes)
+                .fetchCohortRxFromArango(fetchCohortRxFromArango)
+                .arangoCohortRxLimit(arangoCohortRxLimit)
                 .build();
     }
 
@@ -312,11 +369,14 @@ public class AgentServiceImpl implements AgentService {
     private List<RecommendedPrescriptionItemDTO> callAgentAndMap(PrescriptionAgentRequest request) {
         Optional<PrescriptionAgentResponse> maybe = prescriptionAgentClient.recommend(request);
         if (maybe.isEmpty()) {
-            log.info("처방 추천 에이전트 응답 없음 - 빈 recommended_prescriptions 반환");
+            log.warn(
+                    "처방 추천 에이전트 응답 없음 — Python prescription_api(기본 :8001) 가동·URL(ai.prescription-agent.base-url)·"
+                            + "네트워크를 확인하세요. (Spring 6 이전에는 200 OK 인데도 상태코드 비교 실패로 비어 보일 수 있음)");
             return Collections.emptyList();
         }
         PrescriptionAgentResponse resp = maybe.get();
         if (resp.getPrescriptions() == null || resp.getPrescriptions().isEmpty()) {
+            log.warn("처방 추천 Python 응답 본문은 있으나 prescriptions 가 비어 있음");
             return Collections.emptyList();
         }
         List<RecommendedPrescriptionItemDTO> out = new ArrayList<>(resp.getPrescriptions().size());

@@ -34,6 +34,14 @@ public class PrescriptionAgentResponse {
     @JsonProperty("arango_top_rx_count")
     private Integer arangoTopRxCount;
 
+    /** 상병 코호트 AQL 로 처방 통계를 병합했으면 true. */
+    @JsonProperty("used_cohort_rx")
+    private Boolean usedCohortRx;
+
+    /** 코호트에서 가져온 처방 통계 행 수. */
+    @JsonProperty("cohort_rx_count")
+    private Integer cohortRxCount;
+
     @Data
     @Builder
     @NoArgsConstructor

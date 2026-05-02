@@ -71,6 +71,21 @@ public class PrescriptionAgentRequest {
     @JsonProperty("arango_top_rx_limit")
     private Integer arangoTopRxLimit;
 
+    /**
+     * 상병 코드 목록 (예: E11). 비어 있지 않으면 Python 이 Arango 에서 동일 상병이 연결된 방문들의
+     * 처방 빈도 코호트를 조회해 {@code similar_outcomes} 및 {@code top_rx} 후보에 병합한다.
+     */
+    @JsonProperty("disease_codes")
+    private List<String> diseaseCodes;
+
+    /** true 이면 {@link #diseaseCodes} 가 있을 때 코호트 AQL 을 실행한다. */
+    @JsonProperty("fetch_cohort_rx_from_arango")
+    private Boolean fetchCohortRxFromArango;
+
+    /** 코호트 처방 통계 상위 N 건 (Python 기본 40). */
+    @JsonProperty("arango_cohort_rx_limit")
+    private Integer arangoCohortRxLimit;
+
     /** (선택) LLM 모델 ID 를 덮어쓰고 싶을 때. null 이면 Python 기본값 사용. */
     private String model;
 

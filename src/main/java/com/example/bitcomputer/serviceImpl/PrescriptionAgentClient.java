@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -57,13 +56,20 @@ public class PrescriptionAgentClient {
             ResponseEntity<PrescriptionAgentResponse> response = restTemplate.exchange(
                     url, HttpMethod.POST, entity, PrescriptionAgentResponse.class);
 
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            // Spring 6: getStatusCode() 는 HttpStatusCode 이므로 == HttpStatus.OK 비교는 실패할 수 있음
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                PrescriptionAgentResponse body = response.getBody();
                 log.info(
-                        "Python 처방 에이전트 호출 성공 - patient_id={} used_arango={} top_rx_count={}",
+                        "Python 처방 에이전트 호출 성공 - patient_id={} disease_codes={} used_arango={} "
+                                + "top_rx_count={} used_cohort={} cohort_count={} rx={}",
                         request.getPatientId(),
-                        response.getBody().getUsedArangoTopRx(),
-                        response.getBody().getArangoTopRxCount());
-                return Optional.of(response.getBody());
+                        request.getDiseaseCodes(),
+                        body.getUsedArangoTopRx(),
+                        body.getArangoTopRxCount(),
+                        body.getUsedCohortRx(),
+                        body.getCohortRxCount(),
+                        body.getPrescriptions() != null ? body.getPrescriptions().size() : 0);
+                return Optional.of(body);
             }
             log.warn(
                     "Python 처방 에이전트 비정상 응답 - status={} body={}",

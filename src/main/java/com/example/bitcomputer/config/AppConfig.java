@@ -14,6 +14,12 @@ import org.springframework.web.client.RestTemplate;
 @Configuration
 public class AppConfig {
 
+    @Value("${http.client.rest-template.connect-timeout-ms:5000}")
+    private int restTemplateConnectTimeoutMs;
+
+    @Value("${http.client.rest-template.read-timeout-ms:180000}")
+    private int restTemplateReadTimeoutMs;
+
     @Value("${spring.data.redis.host}")
     private String redisHost;
 
@@ -40,8 +46,8 @@ public class AppConfig {
     @Bean
     public RestTemplate restTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5_000);
-        factory.setReadTimeout(30_000);
+        factory.setConnectTimeout(restTemplateConnectTimeoutMs);
+        factory.setReadTimeout(restTemplateReadTimeoutMs);
         return new RestTemplate(factory);
     }
 }

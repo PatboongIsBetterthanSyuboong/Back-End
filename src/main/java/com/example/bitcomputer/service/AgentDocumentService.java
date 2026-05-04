@@ -42,6 +42,16 @@ public interface AgentDocumentService {
     );
 
     /**
+     * 프론트 성능검사용(엑셀 행 기반) 진단서 내용 생성
+     */
+    GenerateCertificateResponseDTO generateTestCertificate(
+            String diseaseCode,
+            String prescriptionCode,
+            String prescriptionName,
+            String username
+    );
+
+    /**
      * 진단서 저장 (PDF 파일 + 메타데이터)
      */
     void saveCertificate(

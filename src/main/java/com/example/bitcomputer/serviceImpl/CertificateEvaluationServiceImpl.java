@@ -1,13 +1,8 @@
 package com.example.bitcomputer.serviceImpl;
 
-import com.example.bitcomputer.Repository.HistoryDiseaseRepository;
-import com.example.bitcomputer.Repository.HistoryRepository;
-import com.example.bitcomputer.entity.History;
-import com.example.bitcomputer.entity.HistoryDisease;
 import com.example.bitcomputer.model.CertificateEvaluationResultDTO;
 import com.example.bitcomputer.model.CertificateEvaluationResultDTO.PairDetail;
 import com.example.bitcomputer.service.CertificateEvaluationService;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -15,8 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -77,32 +72,25 @@ public class CertificateEvaluationServiceImpl implements CertificateEvaluationSe
             "진료일", "처방 내역", "상병명", "발행일", "의료기관", "의사명", "서명"
     );
 
-    private final HistoryRepository historyRepository;
-    private final HistoryDiseaseRepository historyDiseaseRepository;
     private final RestTemplate restTemplate;
 
     @Value("${gemini.api.key}")
     private String geminiApiKey;
 
-    public CertificateEvaluationServiceImpl(HistoryRepository historyRepository,
-                                            HistoryDiseaseRepository historyDiseaseRepository,
-                                            RestTemplate restTemplate) {
-        this.historyRepository = historyRepository;
-        this.historyDiseaseRepository = historyDiseaseRepository;
+    public CertificateEvaluationServiceImpl(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
 
     @Override
-    public CertificateEvaluationResultDTO evaluate(Integer historyId, String medicalCertificate) {
-        History history = historyRepository.findById(historyId)
-                .orElseThrow(() -> new EntityNotFoundException("History not found: " + historyId));
-
-        List<HistoryDisease> diseases = historyDiseaseRepository.findByHistoryId(historyId);
-        String premise = buildPremise(history.getSymptomDetail(), history.getMemo(), diseases);
+    public CertificateEvaluationResultDTO evaluate(
+            String medicalCertificate,
+            String diseaseCode,
+            String prescriptionCode,
+            String prescriptionName) {
+        String premise = buildPremise(diseaseCode, prescriptionCode, prescriptionName);
 
         if (premise.isBlank()) {
-            throw new IllegalArgumentException(
-                    "historyId " + historyId + "에 증상·상병·특이사항 정보가 없어 평가할 수 없습니다.");
+            throw new IllegalArgumentException("상병/처방 정보가 없어 평가할 수 없습니다.");
         }
 
         List<String> sentences = splitIntoOpinionSentences(medicalCertificate);
@@ -138,23 +126,18 @@ public class CertificateEvaluationServiceImpl implements CertificateEvaluationSe
                 .build();
     }
 
-    private String buildPremise(String symptomDetail, String memo, List<HistoryDisease> diseases) {
+    private String buildPremise(String diseaseCode, String prescriptionCode, String prescriptionName) {
         StringBuilder sb = new StringBuilder();
-        if (symptomDetail != null && !symptomDetail.isBlank()) {
-            sb.append("증상: ").append(symptomDetail.trim());
+        if (diseaseCode != null && !diseaseCode.isBlank()) {
+            sb.append("상병코드: ").append(diseaseCode.trim());
         }
-        if (!diseases.isEmpty()) {
+        if (prescriptionCode != null && !prescriptionCode.isBlank()) {
             if (!sb.isEmpty()) sb.append("\n");
-            String diseaseStr = diseases.stream()
-                    .map(d -> d.getName() + "(" + d.getCode() + ")"
-                            + (d.getDegree() != null && !d.getDegree().isBlank()
-                            ? " " + d.getDegree() : ""))
-                    .collect(Collectors.joining(", "));
-            sb.append("상병명: ").append(diseaseStr);
+            sb.append("처방코드: ").append(prescriptionCode.trim());
         }
-        if (memo != null && !memo.isBlank()) {
+        if (prescriptionName != null && !prescriptionName.isBlank()) {
             if (!sb.isEmpty()) sb.append("\n");
-            sb.append("특이사항: ").append(memo.trim());
+            sb.append("처방명: ").append(prescriptionName.trim());
         }
         return sb.toString();
     }

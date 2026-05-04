@@ -27,21 +27,22 @@ public class CertificateEvaluationController {
      */
     @PostMapping("/evaluate")
     public ResponseEntity<?> evaluate(@RequestBody CertificateEvaluationRequestDTO request) {
-        if (request.getHistoryId() == null || request.getMedicalCertificate() == null
-                || request.getMedicalCertificate().isBlank()) {
+        if (request.getMedicalCertificate() == null || request.getMedicalCertificate().isBlank()
+                || request.getDiseaseCode() == null || request.getDiseaseCode().isBlank()
+                || request.getPrescriptionCode() == null || request.getPrescriptionCode().isBlank()
+                || request.getPrescriptionName() == null || request.getPrescriptionName().isBlank()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "historyId와 medicalCertificate는 필수입니다."));
+                    .body(Map.of("error", "medicalCertificate, diseaseCode, prescriptionCode, prescriptionName은 필수입니다."));
         }
 
         try {
             CertificateEvaluationResultDTO result = certificateEvaluationService.evaluate(
-                    request.getHistoryId(),
-                    request.getMedicalCertificate()
+                    request.getMedicalCertificate(),
+                    request.getDiseaseCode(),
+                    request.getPrescriptionCode(),
+                    request.getPrescriptionName()
             );
             return ResponseEntity.ok(result);
-        } catch (jakarta.persistence.EntityNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", e.getMessage()));

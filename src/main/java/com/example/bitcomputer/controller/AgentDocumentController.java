@@ -5,6 +5,7 @@ import com.example.bitcomputer.model.CertificateFormDTO;
 import com.example.bitcomputer.model.CertificateHistoryDTO;
 import com.example.bitcomputer.model.GenerateCertificateRequestDTO;
 import com.example.bitcomputer.model.GenerateCertificateResponseDTO;
+import com.example.bitcomputer.model.GenerateTestCertificateRequestDTO;
 import com.example.bitcomputer.model.PastPrescriptionDTO;
 import com.example.bitcomputer.service.AgentDocumentService;
 import lombok.extern.slf4j.Slf4j;
@@ -116,6 +117,38 @@ public class AgentDocumentController {
             log.error("진단서 생성 오류", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "진단서 생성 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * AI 에이전트 진단서 기재 (엑셀 행 기반 테스트용)
+     * POST /api/agent/document/generate-test
+     */
+    @PostMapping("/generate-test")
+    public ResponseEntity<?> generateCertificateTest(
+            @RequestBody GenerateTestCertificateRequestDTO request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        try {
+            String username = extractUsername(authHeader);
+            if (username == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "인증 정보가 없습니다."));
+            }
+
+            GenerateCertificateResponseDTO response = agentDocumentService.generateTestCertificate(
+                    request.getDiseaseCode(),
+                    request.getPrescriptionCode(),
+                    request.getPrescriptionName(),
+                    username
+            );
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("진단서 테스트 생성 오류", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "진단서 테스트 생성 중 오류가 발생했습니다."));
         }
     }
 

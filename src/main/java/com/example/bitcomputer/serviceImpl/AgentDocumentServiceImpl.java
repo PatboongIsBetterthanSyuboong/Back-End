@@ -305,17 +305,49 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
                 .filter(s -> s != null && !s.isBlank())
                 .orElseGet(() -> buildDefaultCertificateTemplate(agentRequest));
 
-        // 새 토큰 발급
-        String accessToken = jwtTokenProvider.generateAccessToken(username);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(username);
+        return buildGenerateResponse(username, medicalCertificate);
+    }
 
-        GenerateCertificateResponseDTO response = new GenerateCertificateResponseDTO();
-        response.setGrantType("Bearer");
-        response.setAccessToken(accessToken);
-        response.setRefreshToken(refreshToken);
-        response.setMedicalCertificate(medicalCertificate);
+    @Override
+    public GenerateCertificateResponseDTO generateTestCertificate(
+            String diseaseCode, String prescriptionCode, String prescriptionName, String username) {
 
-        return response;
+        String trimmedDiseaseCode = diseaseCode != null ? diseaseCode.trim() : "";
+        String trimmedPrescriptionCode = prescriptionCode != null ? prescriptionCode.trim() : "";
+        String trimmedPrescriptionName = prescriptionName != null ? prescriptionName.trim() : "";
+
+        if (trimmedDiseaseCode.isBlank() || trimmedPrescriptionCode.isBlank() || trimmedPrescriptionName.isBlank()) {
+            throw new IllegalArgumentException("상병코드, 처방코드, 처방명은 모두 필수입니다.");
+        }
+
+        CertificateAgentRequest agentRequest = CertificateAgentRequest.builder()
+                .historyId(0)
+                .certificateType("GENERAL")
+                .patientName("TEST-PATIENT")
+                .patientAge(0)
+                .patientGender("UNKNOWN")
+                .entryDate(LocalDate.now().toString())
+                .symptomDetail("XLSX 행 기반 생성 테스트 요청")
+                .diseases(List.of(CertificateAgentRequest.DiseaseInfo.builder()
+                        .code(trimmedDiseaseCode)
+                        .name(trimmedDiseaseCode)
+                        .degree("N/A")
+                        .build()))
+                .diagnoses(List.of(CertificateAgentRequest.DiagnoseInfo.builder()
+                        .code(trimmedPrescriptionCode)
+                        .name(trimmedPrescriptionName)
+                        .dose(1)
+                        .time(1)
+                        .days(1)
+                        .build()))
+                .build();
+
+        String medicalCertificate = certificateAgentClient.generate(agentRequest)
+                .map(r -> r.getMedicalCertificate())
+                .filter(s -> s != null && !s.isBlank())
+                .orElseGet(() -> buildDefaultCertificateTemplate(agentRequest));
+
+        return buildGenerateResponse(username, medicalCertificate);
     }
 
     @Override
@@ -380,6 +412,18 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
         }
 
         return sb.toString();
+    }
+
+    private GenerateCertificateResponseDTO buildGenerateResponse(String username, String medicalCertificate) {
+        String accessToken = jwtTokenProvider.generateAccessToken(username);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(username);
+
+        GenerateCertificateResponseDTO response = new GenerateCertificateResponseDTO();
+        response.setGrantType("Bearer");
+        response.setAccessToken(accessToken);
+        response.setRefreshToken(refreshToken);
+        response.setMedicalCertificate(medicalCertificate);
+        return response;
     }
 
     private String savePdfFile(int historyId, MultipartFile pdfFile) {

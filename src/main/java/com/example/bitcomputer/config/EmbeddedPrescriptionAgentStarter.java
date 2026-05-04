@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -77,8 +78,14 @@ public class EmbeddedPrescriptionAgentStarter implements ApplicationRunner, Disp
         }
 
         int port = extractPortFromBaseUrl();
+        String pythonExe = resolvePythonExecutable(workDir);
+        String configuredRaw = embedPythonCommand == null ? "" : embedPythonCommand.trim();
+        if (!pythonExe.equals(configuredRaw.isEmpty() ? "python3" : configuredRaw)) {
+            log.info("prescription_api 용 Python: 설정값 대신 사용 가능한 경로를 선택했습니다 — {}", pythonExe);
+        }
+
         List<String> command = new ArrayList<>();
-        command.add(embedPythonCommand);
+        command.add(pythonExe);
         command.add("-m");
         command.add("uvicorn");
         command.add("prescription_api:app");
@@ -110,7 +117,10 @@ public class EmbeddedPrescriptionAgentStarter implements ApplicationRunner, Disp
                 int exit = ownedProcess.exitValue();
                 throw new IllegalStateException(
                         "prescription_api 프로세스가 곧바로 종료되었습니다 (exitCode=" + exit + "). "
-                                + "로그를 확인하고 python·의존성·포트를 점검하세요.");
+                                + "사용한 Python: " + pythonExe
+                                + " — uvicorn 모듈이 없으면 프로젝트 루트에서 "
+                                + "\"pip install -r GraphDB/langchain_graph_qa/requirements.txt\" 로 .venv 를 채우거나, "
+                                + "ai.prescription-agent.embed.python-command 에 해당 venv 의 python 경로를 지정하세요.");
             }
             try {
                 if (isReachable(healthUrl)) {
@@ -127,6 +137,58 @@ public class EmbeddedPrescriptionAgentStarter implements ApplicationRunner, Disp
             throw new IllegalStateException(msg, last);
         }
         throw new IllegalStateException(msg);
+    }
+
+    /**
+     * PATH 의 {@code python3}(예: Anaconda)에 uvicorn 이 없는 경우가 많아,
+     * 설정값이 단순 명령어면 프로젝트 루트 {@code .venv} 를 우선 시도합니다.
+     */
+    private String resolvePythonExecutable(Path workDir) {
+        String configured = embedPythonCommand == null ? "python3" : embedPythonCommand.trim();
+        if (configured.isEmpty()) {
+            configured = "python3";
+        }
+
+        if (configured.contains("/") || configured.contains("\\")) {
+            Path p = Paths.get(configured);
+            if (!p.isAbsolute()) {
+                p = Paths.get(System.getProperty("user.dir")).resolve(p).normalize();
+            }
+            if (isRunnablePython(p)) {
+                return p.toString();
+            }
+        }
+
+        Path repoRoot = workDir.getParent() != null && workDir.getParent().getParent() != null
+                ? workDir.getParent().getParent()
+                : null;
+        if (repoRoot != null) {
+            for (Path candidate : Arrays.asList(
+                    repoRoot.resolve(".venv/bin/python"),
+                    repoRoot.resolve(".venv/Scripts/python.exe"))) {
+                if (isRunnablePython(candidate)) {
+                    return candidate.normalize().toString();
+                }
+            }
+        }
+
+        Path cwd = Paths.get(System.getProperty("user.dir"));
+        for (Path rel : Arrays.asList(
+                cwd.resolve("../.venv/bin/python"),
+                cwd.resolve("../../.venv/bin/python"),
+                cwd.resolve("../.venv/Scripts/python.exe"),
+                cwd.resolve("../../.venv/Scripts/python.exe"))) {
+            Path norm = rel.normalize();
+            if (isRunnablePython(norm)) {
+                return norm.toString();
+            }
+        }
+
+        return configured;
+    }
+
+    private static boolean isRunnablePython(Path p) {
+        return Files.isRegularFile(p) && Files.isExecutable(p);
     }
 
     private String resolveGoogleApiKey() {

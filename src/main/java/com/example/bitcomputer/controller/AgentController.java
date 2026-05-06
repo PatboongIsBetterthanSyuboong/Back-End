@@ -2,6 +2,7 @@ package com.example.bitcomputer.controller;
 
 import com.example.bitcomputer.model.PrescriptionRecommendRequestDTO;
 import com.example.bitcomputer.model.PrescriptionRecommendResponseDTO;
+import com.example.bitcomputer.model.SavePrescriptionFeedbackRequestDTO;
 import com.example.bitcomputer.service.AgentService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +37,17 @@ public class AgentController {
             return ResponseEntity.badRequest().build();
         } catch (EntityNotFoundException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/feedback")
+    public ResponseEntity<Void> savePrescriptionFeedback(
+            @RequestBody SavePrescriptionFeedbackRequestDTO request) {
+        try {
+            agentService.savePrescriptionFeedback(request);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         }
     }
 }

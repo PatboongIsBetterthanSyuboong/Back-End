@@ -5,17 +5,20 @@ import com.example.bitcomputer.Repository.HistoryDiseaseRepository;
 import com.example.bitcomputer.Repository.HistoryRepository;
 import com.example.bitcomputer.Repository.PatientRepository;
 import com.example.bitcomputer.Repository.DiagnoseRepository;
+import com.example.bitcomputer.Repository.PrescriptionFeedbackRepository;
 import com.example.bitcomputer.entity.Diagnose;
 import com.example.bitcomputer.entity.History;
 import com.example.bitcomputer.entity.HistoryDiagnose;
 import com.example.bitcomputer.entity.HistoryDisease;
 import com.example.bitcomputer.entity.Patient;
+import com.example.bitcomputer.entity.PrescriptionFeedback;
 import com.example.bitcomputer.model.HistoryDTO;
 import com.example.bitcomputer.model.PrescriptionAgentRequest;
 import com.example.bitcomputer.model.PrescriptionAgentResponse;
 import com.example.bitcomputer.model.PrescriptionRecommendRequestDTO;
 import com.example.bitcomputer.model.PrescriptionRecommendResponseDTO;
 import com.example.bitcomputer.model.RecommendedPrescriptionItemDTO;
+import com.example.bitcomputer.model.SavePrescriptionFeedbackRequestDTO;
 import com.example.bitcomputer.service.AgentService;
 import com.example.bitcomputer.service.HistoryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,6 +29,7 @@ import org.springframework.stereotype.Service;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +38,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -47,6 +52,7 @@ public class AgentServiceImpl implements AgentService {
     private final HistoryDiseaseRepository historyDiseaseRepository;
     private final PatientRepository patientRepository;
     private final DiagnoseRepository diagnoseRepository;
+    private final PrescriptionFeedbackRepository prescriptionFeedbackRepository;
     private final PrescriptionAgentClient prescriptionAgentClient;
     private final ObjectMapper objectMapper;
 
@@ -72,6 +78,7 @@ public class AgentServiceImpl implements AgentService {
             HistoryDiseaseRepository historyDiseaseRepository,
             PatientRepository patientRepository,
             DiagnoseRepository diagnoseRepository,
+            PrescriptionFeedbackRepository prescriptionFeedbackRepository,
             ObjectMapper objectMapper,
             PrescriptionAgentClient prescriptionAgentClient) {
         this.historyService = historyService;
@@ -80,6 +87,7 @@ public class AgentServiceImpl implements AgentService {
         this.historyDiseaseRepository = historyDiseaseRepository;
         this.patientRepository = patientRepository;
         this.diagnoseRepository = diagnoseRepository;
+        this.prescriptionFeedbackRepository = prescriptionFeedbackRepository;
         this.objectMapper = objectMapper;
         this.prescriptionAgentClient = prescriptionAgentClient;
     }
@@ -456,5 +464,49 @@ public class AgentServiceImpl implements AgentService {
             return null;
         }
         return t;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void savePrescriptionFeedback(SavePrescriptionFeedbackRequestDTO request) {
+        if (request.getHistoryId() == null || request.getFeedbackItems() == null || request.getFeedbackItems().isEmpty()) {
+            throw new IllegalArgumentException("historyId and feedbackItems are required");
+        }
+
+        boolean hasMissed = request.getFeedbackItems().stream().anyMatch(i -> "missed".equals(i.getStatus()));
+        boolean hasAiStatuses = request.getFeedbackItems().stream()
+                .anyMatch(i -> "accepted".equals(i.getStatus()) || "rejected".equals(i.getStatus()));
+
+        // missed와 accepted/rejected는 서로를 지우지 않도록 분리 삭제
+        if (hasMissed) {
+            prescriptionFeedbackRepository.deleteMissedByHistoryId(request.getHistoryId());
+        }
+        if (hasAiStatuses) {
+            prescriptionFeedbackRepository.deleteNonMissedByHistoryId(request.getHistoryId());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        List<PrescriptionFeedback> entities = request.getFeedbackItems().stream()
+                .map(item -> {
+                    PrescriptionFeedback fb = new PrescriptionFeedback();
+                    fb.setHistoryId(request.getHistoryId());
+                    fb.setHistoryDiagnoseId(request.getHistoryDiagnoseId());
+                    fb.setRank(item.getRank());
+                    fb.setPrescriptionId(item.getPrescriptionId());
+                    fb.setPrescriptionCode(item.getPrescriptionCode());
+                    fb.setPrescriptionName(item.getPrescriptionName());
+                    fb.setConfidenceScore(item.getConfidenceScore());
+                    fb.setReason(item.getReason());
+                    fb.setStatus(item.getStatus());
+                    fb.setCreatedAt(now);
+                    return fb;
+                })
+                .collect(Collectors.toList());
+        prescriptionFeedbackRepository.saveAll(entities);
+        log.info("처방 피드백 저장: historyId={}, accepted={}, rejected={}, missed={}",
+                request.getHistoryId(),
+                entities.stream().filter(e -> "accepted".equals(e.getStatus())).count(),
+                entities.stream().filter(e -> "rejected".equals(e.getStatus())).count(),
+                entities.stream().filter(e -> "missed".equals(e.getStatus())).count());
     }
 }

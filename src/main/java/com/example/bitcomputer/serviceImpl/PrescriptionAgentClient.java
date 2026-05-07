@@ -1,5 +1,6 @@
 package com.example.bitcomputer.serviceImpl;
 
+import com.example.bitcomputer.model.SavePrescriptionFeedbackRequestDTO;
 import com.example.bitcomputer.model.PrescriptionAgentRequest;
 import com.example.bitcomputer.model.PrescriptionAgentResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -34,6 +39,9 @@ public class PrescriptionAgentClient {
 
     @Value("${ai.prescription-agent.path:/api/agent/prescription/recommend}")
     private String path;
+
+    @Value("${ai.prescription-agent.feedback-path:/api/agent/prescription/feedback}")
+    private String feedbackPath;
 
     public PrescriptionAgentClient(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
@@ -81,6 +89,43 @@ public class PrescriptionAgentClient {
         } catch (Exception e) {
             log.error("Python 처방 에이전트 호출 중 예상치 못한 오류 ({})", url, e);
             return Optional.empty();
+        }
+    }
+
+    public void saveFeedbackToGraph(SavePrescriptionFeedbackRequestDTO request) {
+        String url = baseUrl + feedbackPath;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
+
+        List<Map<String, Object>> feedbackItems = new ArrayList<>();
+        for (SavePrescriptionFeedbackRequestDTO.FeedbackItem item : request.getFeedbackItems()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("rank", item.getRank());
+            row.put("prescription_id", item.getPrescriptionId());
+            row.put("prescription_code", item.getPrescriptionCode());
+            row.put("prescription_name", item.getPrescriptionName());
+            row.put("confidence_score", item.getConfidenceScore());
+            row.put("reason", item.getReason());
+            row.put("status", item.getStatus());
+            feedbackItems.add(row);
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("history_id", request.getHistoryId());
+        payload.put("history_diagnose_id", request.getHistoryDiagnoseId());
+        payload.put("feedback_items", feedbackItems);
+
+        try {
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url, HttpMethod.POST, entity, Map.class);
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                throw new IllegalStateException(
+                        "그래프 피드백 API 비정상 응답 status=" + response.getStatusCode());
+            }
+        } catch (RestClientException e) {
+            throw new IllegalStateException("그래프 피드백 API 호출 실패: " + e.getMessage(), e);
         }
     }
 }

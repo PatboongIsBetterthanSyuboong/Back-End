@@ -64,5 +64,9 @@ public class PrescriptionAgentResponse {
 
         /** 데이터 인용 + 짧은 임상/약리 보강(한국어). */
         private String reason;
+
+        /** 모델/후처리 confidence (없으면 null). */
+        @JsonProperty("confidence_score")
+        private Double confidenceScore;
     }
 }

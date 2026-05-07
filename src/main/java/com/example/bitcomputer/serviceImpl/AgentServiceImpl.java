@@ -396,7 +396,7 @@ public class AgentServiceImpl implements AgentService {
                     .prescriptionCode(item.getPrescriptionCode())
                     .prescriptionName(item.getName())
                     .reason(item.getReason())
-                    .confidenceScore(0.0) // Python 쪽 스키마엔 없음. 추후 top_rx 빈도 기반으로 채울 예정.
+                    .confidenceScore(item.getConfidenceScore() != null ? item.getConfidenceScore() : 0.0)
                     .dose(matched != null ? matched.getDose() : 0)
                     .time(matched != null ? matched.getTime() : 0)
                     .days(matched != null ? matched.getDays() : 0)
@@ -503,6 +503,12 @@ public class AgentServiceImpl implements AgentService {
                 })
                 .collect(Collectors.toList());
         prescriptionFeedbackRepository.saveAll(entities);
+        try {
+            prescriptionAgentClient.saveFeedbackToGraph(request);
+        } catch (Exception e) {
+            // MySQL 저장 성공은 유지하고, 그래프 적재 실패는 경고로 남긴다.
+            log.warn("Arango 처방 피드백 저장 실패: historyId={}, err={}", request.getHistoryId(), e.getMessage());
+        }
         log.info("처방 피드백 저장: historyId={}, accepted={}, rejected={}, missed={}",
                 request.getHistoryId(),
                 entities.stream().filter(e -> "accepted".equals(e.getStatus())).count(),

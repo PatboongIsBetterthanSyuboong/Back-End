@@ -18,10 +18,14 @@ import org.springframework.web.client.RestTemplate;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Component
 public class XrayGraphRagClient {
+
+    private static final Set<String> EXCLUDED_DISEASE_TAGS = Set.of("no_finding", "support_devices");
+    private static final int MAX_PREDICTED_DISEASES = 3;
 
     private final RestTemplate restTemplate;
 
@@ -93,10 +97,19 @@ public class XrayGraphRagClient {
             return out;
         }
         for (XrayPredictedDisease disease : diseases) {
+            if (disease == null
+                    || disease.getDisease() == null
+                    || EXCLUDED_DISEASE_TAGS.contains(disease.getDisease().toLowerCase())) {
+                continue;
+            }
             out.add(new RadiologyAnalysisResponseDTO.PredictedDisease(
                     disease.getDisease(),
                     disease.getScore(),
                     disease.getReason()));
+        }
+        out.sort((a, b) -> Double.compare(b.getScore(), a.getScore()));
+        if (out.size() > MAX_PREDICTED_DISEASES) {
+            return new ArrayList<>(out.subList(0, MAX_PREDICTED_DISEASES));
         }
         return out;
     }

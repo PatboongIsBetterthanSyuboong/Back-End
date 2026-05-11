@@ -2,9 +2,12 @@ package com.example.bitcomputer.serviceImpl;
 
 import com.example.bitcomputer.Repository.RadiologyReportRepository;
 import com.example.bitcomputer.entity.RadiologyReport;
+import com.example.bitcomputer.model.RadiologyAnalysisResponseDTO;
 import com.example.bitcomputer.model.RadiologyReportRequestDTO;
 import com.example.bitcomputer.model.RadiologyReportResponseDTO;
 import com.example.bitcomputer.service.RadiologyReportService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -12,9 +15,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -22,110 +30,61 @@ public class RadiologyReportServiceImpl implements RadiologyReportService {
 
     private final RadiologyReportRepository radiologyReportRepository;
     private final RestTemplate restTemplate;
+    private final XrayGraphRagClient xrayGraphRagClient;
+    private final ObjectMapper objectMapper;
 
     @Value("${ai.api.base-url:http://localhost:5000}")
     private String aiApiBaseUrl;
 
+    @Value("${ai.api.radiology-path:/api/ai/radiology_report}")
+    private String flaskRadiologyPath;
+
+    @Value("${radiology.engine:xray}")
+    private String radiologyEngine;
+
     public RadiologyReportServiceImpl(
             RadiologyReportRepository radiologyReportRepository,
-            RestTemplate restTemplate) {
+            RestTemplate restTemplate,
+            XrayGraphRagClient xrayGraphRagClient,
+            ObjectMapper objectMapper) {
         this.radiologyReportRepository = radiologyReportRepository;
         this.restTemplate = restTemplate;
+        this.xrayGraphRagClient = xrayGraphRagClient;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    public RadiologyReportResponseDTO processRadiologyReport(RadiologyReportRequestDTO request) {
+    public RadiologyAnalysisResponseDTO processRadiologyReport(RadiologyReportRequestDTO request) {
         try {
-            // Flask API로 요청 전송
-            String url = aiApiBaseUrl + "/api/ai/radiology_report";
-            
-            log.info("Flask API 호출 시작 - URL: {}, 이미지 경로: {}", url, request.getDetailImageAddress());
-            
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            
-            HttpEntity<RadiologyReportRequestDTO> httpEntity = new HttpEntity<>(request, headers);
-            
-            ResponseEntity<RadiologyReportResponseDTO> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    httpEntity,
-                    RadiologyReportResponseDTO.class
-            );
-            
-            log.info("Flask API 응답 받음 - Status: {}", response.getStatusCode());
-            
-            if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR,
-                        "AI API에서 응답을 받지 못했습니다."
-                );
-            }
-            
-            RadiologyReportResponseDTO responseDTO = response.getBody();
-            
-            log.info("Flask API 응답 데이터 - result: {}, imageUrl: {}, summary: {}, status: {}", 
-                    responseDTO != null ? responseDTO.isResult() : "null",
-                    responseDTO != null ? responseDTO.getImageUrl() : "null",
-                    responseDTO != null ? responseDTO.getSummary() : "null",
-                    responseDTO != null ? responseDTO.getStatus() : "null");
-            
-            // 데이터베이스에 저장 또는 업데이트
-            RadiologyReport report;
-            if (request.getRadiologyRequestId() > 0) {
-                // 기존 레포트가 있으면 업데이트
-                report = radiologyReportRepository.findById(request.getRadiologyRequestId())
-                        .orElseThrow(() -> new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "영상판독 요청을 찾을 수 없습니다: " + request.getRadiologyRequestId()
-                        ));
-            } else {
-                // 새 레포트 생성
-                report = new RadiologyReport();
-            }
-            
-            // AI 분석 결과로 업데이트
-            report.setResult(responseDTO != null ? responseDTO.isResult() : false);
-            report.setSummary(responseDTO != null ? responseDTO.getSummary() : null);
-            report.setImageUrl(responseDTO != null ? responseDTO.getImageUrl() : null);
-            report.setStatus(responseDTO != null ? responseDTO.getStatus() : "completed");
-            
-            // 새 레포트인 경우에만 기본 정보 설정
+            AnalysisResult analysisResult = callConfiguredEngine(request);
+            RadiologyAnalysisResponseDTO responseDTO = analysisResult.response();
+            RadiologyReport report = findOrCreateReport(request);
+
+            report.setResult(analysisResult.positive());
+            report.setSummary(serializePredictedDiseases(responseDTO.getPredictedDiseases()));
+            report.setImageUrl(responseDTO.getHeatmapUrl());
+            report.setStatus("completed");
+
             if (request.getRadiologyRequestId() == 0) {
-                report.setPatientId(request.getPatientId());
-                report.setEmployeeId(request.getEmployeeId());
-                report.setDeptId(request.getDeptId());
-                report.setSymptomDetail(request.getSymptomDetail());
-                report.setMemo(request.getMemo());
-                report.setEntryDate(convertToLocalDate(request.getEntryDate()));
-                report.setDetailImageAddress(request.getDetailImageAddress());
+                applyRequestFields(report, request);
             }
-            
-            log.info("저장할 데이터 - radiologyRequestId: {}, patientId: {}, result: {}", 
-                    report.getRadiologyRequestId(), report.getPatientId(), report.getResult());
-            
+
             radiologyReportRepository.save(report);
-            
-            // responseDTO에 radiologyRequestId 설정
-            if (responseDTO != null) {
-                responseDTO.setRadiologyRequestId(report.getRadiologyRequestId());
-            }
-            
             return responseDTO;
-            
+
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             // HTTP 4xx 오류 (클라이언트 오류)
             String errorBody = e.getResponseBodyAsString();
-            log.error("Flask API 클라이언트 오류 (HTTP {}): {}", e.getStatusCode(), errorBody, e);
+            log.error("영상판독 API 클라이언트 오류 (HTTP {}): {}", e.getStatusCode(), errorBody, e);
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "AI API에서 오류가 발생했습니다 (HTTP " + e.getStatusCode() + "): " + 
+                    "AI API에서 오류가 발생했습니다 (HTTP " + e.getStatusCode() + "): " +
                     (errorBody != null && !errorBody.isEmpty() ? errorBody : e.getMessage())
             );
         } catch (org.springframework.web.client.HttpServerErrorException e) {
             // HTTP 5xx 오류 (서버 오류)
             String errorBody = e.getResponseBodyAsString();
-            log.error("Flask API 서버 오류 (HTTP {}): {}", e.getStatusCode(), errorBody, e);
+            log.error("영상판독 API 서버 오류 (HTTP {}): {}", e.getStatusCode(), errorBody, e);
             
             // JSON 응답에서 error 필드 추출 시도
             String errorMessage = "AI API 서버 오류";
@@ -153,14 +112,13 @@ public class RadiologyReportServiceImpl implements RadiologyReportService {
                     "AI API 서버 오류 (HTTP " + e.getStatusCode() + "): " + errorMessage
             );
         } catch (org.springframework.web.client.ResourceAccessException e) {
-            // 연결 오류 (Flask 서버가 실행되지 않음)
-            log.error("Flask API 서버 연결 실패: {}", e.getMessage(), e);
+            log.error("영상판독 API 서버 연결 실패: {}", e.getMessage(), e);
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "AI API 서버에 연결할 수 없습니다. Flask 서버가 실행 중인지 확인하세요: " + e.getMessage()
+                    "AI API 서버에 연결할 수 없습니다. 영상판독 서버가 실행 중인지 확인하세요: " + e.getMessage()
             );
         } catch (org.springframework.web.client.RestClientException e) {
-            log.error("Flask API 통신 오류: {}", e.getMessage(), e);
+            log.error("영상판독 API 통신 오류: {}", e.getMessage(), e);
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "AI API와 통신 중 오류가 발생했습니다: " + e.getMessage()
@@ -198,6 +156,102 @@ public class RadiologyReportServiceImpl implements RadiologyReportService {
         log.info("영상판독 요청 생성됨 - radiologyRequestId: {}", savedReport.getRadiologyRequestId());
         
         return savedReport.getRadiologyRequestId();
+    }
+
+    private AnalysisResult callConfiguredEngine(RadiologyReportRequestDTO request) {
+        if ("flask".equalsIgnoreCase(radiologyEngine)) {
+            return callFlaskRadiology(request);
+        }
+        Path imagePath = resolveImagePath(request.getDetailImageAddress());
+        RadiologyAnalysisResponseDTO response = xrayGraphRagClient.infer(imagePath);
+        boolean positive = response.getPredictedDiseases() != null && !response.getPredictedDiseases().isEmpty();
+        return new AnalysisResult(response, positive);
+    }
+
+    private AnalysisResult callFlaskRadiology(RadiologyReportRequestDTO request) {
+        String url = aiApiBaseUrl + flaskRadiologyPath;
+        log.info("Flask 영상판독 API 호출 시작 - URL: {}, 이미지 경로: {}", url, request.getDetailImageAddress());
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<RadiologyReportRequestDTO> httpEntity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<RadiologyReportResponseDTO> response = restTemplate.exchange(
+                url, HttpMethod.POST, httpEntity, RadiologyReportResponseDTO.class);
+
+        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Flask 영상판독 API에서 응답을 받지 못했습니다.");
+        }
+
+        RadiologyReportResponseDTO flask = response.getBody();
+        RadiologyAnalysisResponseDTO out = new RadiologyAnalysisResponseDTO();
+        out.setHeatmapUrl(flask.getImageUrl());
+        out.setPredictedDiseases(new ArrayList<>());
+        out.setWarning("기존 Flask 영상판독 엔진은 이상 유무와 heatmap만 제공합니다.");
+        return new AnalysisResult(out, flask.isResult());
+    }
+
+    private RadiologyReport findOrCreateReport(RadiologyReportRequestDTO request) {
+        if (request.getRadiologyRequestId() > 0) {
+            return radiologyReportRepository.findById(request.getRadiologyRequestId())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "영상판독 요청을 찾을 수 없습니다: " + request.getRadiologyRequestId()
+                    ));
+        }
+        RadiologyReport report = new RadiologyReport();
+        applyRequestFields(report, request);
+        return report;
+    }
+
+    private void applyRequestFields(RadiologyReport report, RadiologyReportRequestDTO request) {
+        report.setPatientId(request.getPatientId());
+        report.setEmployeeId(request.getEmployeeId());
+        report.setDeptId(request.getDeptId());
+        report.setSymptomDetail(request.getSymptomDetail());
+        report.setMemo(request.getMemo());
+        report.setEntryDate(convertToLocalDate(request.getEntryDate()));
+        report.setDetailImageAddress(request.getDetailImageAddress());
+    }
+
+    private String serializePredictedDiseases(List<RadiologyAnalysisResponseDTO.PredictedDisease> predictedDiseases) {
+        try {
+            return objectMapper.writeValueAsString(predictedDiseases != null ? predictedDiseases : List.of());
+        } catch (JsonProcessingException e) {
+            log.warn("영상판독 predictedDiseases 직렬화 실패", e);
+            return "[]";
+        }
+    }
+
+    private Path resolveImagePath(String imageAddress) {
+        if (imageAddress == null || imageAddress.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미지 경로가 없습니다.");
+        }
+
+        Path raw = Paths.get(imageAddress);
+        if (raw.isAbsolute() && Files.exists(raw)) {
+            return raw;
+        }
+
+        Path cwd = Paths.get("").toAbsolutePath();
+        List<Path> candidates = new ArrayList<>();
+        candidates.add(cwd.resolve(imageAddress));
+        candidates.add(cwd.resolve("BitComputer").resolve(imageAddress));
+        if (cwd.getParent() != null) {
+            candidates.add(cwd.getParent().resolve("BitComputer").resolve(imageAddress));
+        }
+
+        for (Path candidate : candidates) {
+            if (Files.exists(candidate)) {
+                return candidate;
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "이미지 파일을 찾을 수 없습니다: " + imageAddress);
+    }
+
+    private record AnalysisResult(RadiologyAnalysisResponseDTO response, boolean positive) {
     }
     
     @Override

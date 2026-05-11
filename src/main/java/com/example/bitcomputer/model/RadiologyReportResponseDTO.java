@@ -3,6 +3,7 @@ package com.example.bitcomputer.model;
 import lombok.Data;
 
 @Data
+@Deprecated
 public class RadiologyReportResponseDTO {
     int radiologyRequestId;
     int patientId;

@@ -26,10 +26,17 @@ public class CertificateAgentClient {
 
     private final RestTemplate restTemplate;
 
-    @Value("${ai.api.base-url:http://localhost:5000}")
+    /**
+     * 진단서 에이전트(certificate_api) 전용 base-url.
+     *
+     * <p>영상판독 Flask 서버(`ai.api.base-url`) 와 같은 포트(5000) 를 두고 충돌하던 문제를
+     * 해결하기 위해 별도 프로퍼티로 분리했다. 미설정 시 5001 로 폴백한다.
+     */
+    @Value("${ai.certificate-agent.base-url:http://localhost:5001}")
     private String baseUrl;
 
-    private static final String PATH = "/api/ai/document/generate";
+    @Value("${ai.certificate-agent.path:/api/ai/document/generate}")
+    private String path;
 
     public CertificateAgentClient(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
@@ -42,7 +49,7 @@ public class CertificateAgentClient {
      * @return Gemini 가 생성한 진단서 소견 문자열. 호출 실패 시 {@link Optional#empty()}.
      */
     public Optional<CertificateAgentResponse> generate(CertificateAgentRequest request) {
-        String url = baseUrl + PATH;
+        String url = baseUrl + path;
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);

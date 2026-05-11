@@ -1,3 +1,8 @@
+#
+# Deprecated local-only compose file.
+# Prefer the workspace-root docker-compose.yml for the full stack:
+#   docker compose --env-file .env.docker up --build
+#
 services:
   mysql:
     image: mysql:8

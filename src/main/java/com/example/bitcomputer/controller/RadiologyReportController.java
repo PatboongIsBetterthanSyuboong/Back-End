@@ -1,7 +1,7 @@
 package com.example.bitcomputer.controller;
 
+import com.example.bitcomputer.model.RadiologyAnalysisResponseDTO;
 import com.example.bitcomputer.model.RadiologyReportRequestDTO;
-import com.example.bitcomputer.model.RadiologyReportResponseDTO;
 import com.example.bitcomputer.service.RadiologyReportService;
 import com.example.bitcomputer.util.ImageStorageUtil;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -29,10 +29,10 @@ public class RadiologyReportController {
     }
 
     @PostMapping("/report")
-    public ResponseEntity<RadiologyReportResponseDTO> processRadiologyReport(
+    public ResponseEntity<RadiologyAnalysisResponseDTO> processRadiologyReport(
             @RequestBody RadiologyReportRequestDTO request) {
         try {
-            RadiologyReportResponseDTO response = radiologyReportService.processRadiologyReport(request);
+            RadiologyAnalysisResponseDTO response = radiologyReportService.processRadiologyReport(request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -120,8 +120,8 @@ public class RadiologyReportController {
             // 5. 이미지 경로 업데이트 (DB 업데이트)
             radiologyReportService.updateImagePath(radiologyRequestId, imageRelativePath);
             
-            // 6. AI 분석 요청 (Flask API 호출)
-            RadiologyReportResponseDTO response = radiologyReportService.processRadiologyReport(request);
+            // 6. AI 분석 요청
+            RadiologyAnalysisResponseDTO response = radiologyReportService.processRadiologyReport(request);
             
             // 7. 응답 반환 (오버레이 이미지 URL 포함)
             return ResponseEntity.ok(response);

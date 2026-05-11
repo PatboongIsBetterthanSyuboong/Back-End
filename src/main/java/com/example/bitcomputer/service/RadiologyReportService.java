@@ -1,10 +1,10 @@
 package com.example.bitcomputer.service;
 
 import com.example.bitcomputer.model.RadiologyReportRequestDTO;
-import com.example.bitcomputer.model.RadiologyReportResponseDTO;
+import com.example.bitcomputer.model.RadiologyAnalysisResponseDTO;
 
 public interface RadiologyReportService {
-    RadiologyReportResponseDTO processRadiologyReport(RadiologyReportRequestDTO request);
+    RadiologyAnalysisResponseDTO processRadiologyReport(RadiologyReportRequestDTO request);
     
     /**
      * 영상판독 요청을 DB에 저장하고 radiologyRequestId를 반환

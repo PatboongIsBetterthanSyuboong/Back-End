@@ -18,7 +18,7 @@ public class Diagnose {
     @Column(name = "code", nullable = false)
     private String code;
     
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, columnDefinition = "TEXT")
     private String name;
     
     @Column(name = "dose", nullable = false)

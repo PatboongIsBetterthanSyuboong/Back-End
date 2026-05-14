@@ -106,6 +106,8 @@ public class AgentDocumentController {
                     agentDocumentService.generateCertificate(
                             request.getHistoryId(),
                             request.getCertificateType(),
+                            request.getDiagnosisKind(),
+                            request.getPurpose(),
                             username);
 
             return ResponseEntity.ok(response);
@@ -139,6 +141,9 @@ public class AgentDocumentController {
                     request.getDiseaseCode(),
                     request.getPrescriptionCode(),
                     request.getPrescriptionName(),
+                    request.getCertificateType(),
+                    request.getDiagnosisKind(),
+                    request.getPurpose(),
                     username
             );
             return ResponseEntity.ok(response);

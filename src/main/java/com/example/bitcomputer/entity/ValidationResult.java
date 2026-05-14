@@ -12,6 +12,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "validation_result")
@@ -19,6 +20,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ValidationResult {
+    private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -49,6 +52,6 @@ public class ValidationResult {
 
     @PrePersist
     void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now(SEOUL_ZONE);
     }
 }

@@ -18,5 +18,6 @@ public class RadiologyReportRequestDTO {
     Date entryDate;
     
     String detailImageAddress;
+    String view;
 }
 

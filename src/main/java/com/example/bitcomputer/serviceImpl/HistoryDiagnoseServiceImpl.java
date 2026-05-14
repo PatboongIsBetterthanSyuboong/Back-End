@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,17 +22,14 @@ public class HistoryDiagnoseServiceImpl implements HistoryDiagnoseService {
     private final HistoryDiagnoseRepository historyDiagnoseRepository;
     private final HistoryRepository historyRepository;
     private final DiagnoseRepository diagnoseRepository;
-    private final ValidationOutboxService validationOutboxService;
 
     public HistoryDiagnoseServiceImpl(
             HistoryDiagnoseRepository historyDiagnoseRepository,
             HistoryRepository historyRepository,
-            DiagnoseRepository diagnoseRepository,
-            ValidationOutboxService validationOutboxService) {
+            DiagnoseRepository diagnoseRepository) {
         this.historyDiagnoseRepository = historyDiagnoseRepository;
         this.historyRepository = historyRepository;
         this.diagnoseRepository = diagnoseRepository;
-        this.validationOutboxService = validationOutboxService;
     }
 
     @Override
@@ -74,10 +70,6 @@ public class HistoryDiagnoseServiceImpl implements HistoryDiagnoseService {
         List<HistoryDiagnose> saved = historyDiagnoseRepository.saveAll(toSave);
         history.setEntryDate(LocalDateTime.now());
         historyRepository.save(history);
-        validationOutboxService.enqueueHistoryValidation(
-                "PRESCRIPTION_SAVED",
-                history,
-                Map.of("savedCount", saved.size(), "mode", "replace"));
         return saved.stream().map(this::toDto).collect(Collectors.toList());
     }
 
@@ -113,11 +105,6 @@ public class HistoryDiagnoseServiceImpl implements HistoryDiagnoseService {
         HistoryDiagnose saved = historyDiagnoseRepository.save(entity);
         history.setEntryDate(LocalDateTime.now());
         historyRepository.save(history);
-        List<HistoryDiagnose> currentDiagnoses = historyDiagnoseRepository.findByHistoryId(historyId);
-        validationOutboxService.enqueueHistoryValidation(
-                "PRESCRIPTION_SAVED",
-                history,
-                Map.of("savedCount", currentDiagnoses.size(), "mode", "append"));
         return toDto(saved);
     }
 

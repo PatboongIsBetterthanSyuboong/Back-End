@@ -265,7 +265,11 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
 
     @Override
     public GenerateCertificateResponseDTO generateCertificate(
-            Integer historyId, String certificateType, String username) {
+            Integer historyId,
+            String certificateType,
+            String diagnosisKind,
+            String purpose,
+            String username) {
 
         History history = historyRepository.findById(historyId)
                 .orElseThrow(() -> new EntityNotFoundException("History not found: " + historyId));
@@ -279,12 +283,14 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
         // Python 진단서 에이전트 요청 DTO 구성
         CertificateAgentRequest agentRequest = CertificateAgentRequest.builder()
                 .historyId(historyId)
-                .certificateType(certificateType != null ? certificateType : "GENERAL")
+                .certificateType(normalizeCertificateType(certificateType))
                 .patientName(patient.getName())
                 .patientAge(calculateAge(patient.getBirth()))
                 .patientGender(patient.getGender())
                 .entryDate(history.getEntryDate().toLocalDate().toString())
                 .symptomDetail(history.getSymptomDetail())
+                .diagnosisKind(normalizeDiagnosisKind(diagnosisKind))
+                .purpose(normalizePurpose(purpose))
                 .diseases(diseases.stream().map(d -> CertificateAgentRequest.DiseaseInfo.builder()
                         .code(d.getCode())
                         .name(d.getName())
@@ -310,7 +316,13 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
 
     @Override
     public GenerateCertificateResponseDTO generateTestCertificate(
-            String diseaseCode, String prescriptionCode, String prescriptionName, String username) {
+            String diseaseCode,
+            String prescriptionCode,
+            String prescriptionName,
+            String certificateType,
+            String diagnosisKind,
+            String purpose,
+            String username) {
 
         String trimmedDiseaseCode = diseaseCode != null ? diseaseCode.trim() : "";
         String trimmedPrescriptionCode = prescriptionCode != null ? prescriptionCode.trim() : "";
@@ -322,12 +334,14 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
 
         CertificateAgentRequest agentRequest = CertificateAgentRequest.builder()
                 .historyId(0)
-                .certificateType("GENERAL")
+                .certificateType(normalizeCertificateType(certificateType))
                 .patientName("TEST-PATIENT")
                 .patientAge(0)
                 .patientGender("UNKNOWN")
                 .entryDate(LocalDate.now().toString())
                 .symptomDetail("XLSX 행 기반 생성 테스트 요청")
+                .diagnosisKind(normalizeDiagnosisKind(diagnosisKind))
+                .purpose(normalizePurpose(purpose))
                 .diseases(List.of(CertificateAgentRequest.DiseaseInfo.builder()
                         .code(trimmedDiseaseCode)
                         .name(trimmedDiseaseCode)
@@ -389,6 +403,17 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
             sb.append("주요 증상: ").append(req.getSymptomDetail()).append("\n\n");
         }
 
+        if (req.getDiagnosisKind() != null && !req.getDiagnosisKind().isBlank()) {
+            sb.append("진단 구분: ").append(req.getDiagnosisKind()).append("\n");
+        }
+        if (req.getPurpose() != null && !req.getPurpose().isBlank()) {
+            sb.append("용도: ").append(req.getPurpose()).append("\n");
+        }
+        if ((req.getDiagnosisKind() != null && !req.getDiagnosisKind().isBlank())
+                || (req.getPurpose() != null && !req.getPurpose().isBlank())) {
+            sb.append("\n");
+        }
+
         if (req.getDiseases() != null && !req.getDiseases().isEmpty()) {
             sb.append("【 상병명 】\n");
             for (CertificateAgentRequest.DiseaseInfo d : req.getDiseases()) {
@@ -412,6 +437,32 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
         }
 
         return sb.toString();
+    }
+
+    private String normalizeCertificateType(String certificateType) {
+        if ("MILITARY".equalsIgnoreCase(certificateType)) {
+            return "MILITARY";
+        }
+        return "GENERAL";
+    }
+
+    private String normalizeDiagnosisKind(String diagnosisKind) {
+        if (diagnosisKind == null || diagnosisKind.isBlank()) {
+            return "미선택";
+        }
+        String trimmed = diagnosisKind.trim();
+        if ("FINAL".equalsIgnoreCase(trimmed) || "최종진단".equals(trimmed.replace(" ", ""))) {
+            return "최종 진단";
+        }
+        if ("CLINICAL_ESTIMATE".equalsIgnoreCase(trimmed)
+                || "임상적추정".equals(trimmed.replace(" ", ""))) {
+            return "임상적 추정";
+        }
+        return trimmed;
+    }
+
+    private String normalizePurpose(String purpose) {
+        return purpose == null ? "" : purpose.trim();
     }
 
     private GenerateCertificateResponseDTO buildGenerateResponse(String username, String medicalCertificate) {

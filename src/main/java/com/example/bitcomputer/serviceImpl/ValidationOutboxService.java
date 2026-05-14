@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,7 @@ import java.util.Map;
 @Slf4j
 @Service
 public class ValidationOutboxService {
+    private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 
     private final ValidationEventRepository validationEventRepository;
     private final ObjectMapper objectMapper;
@@ -30,7 +32,7 @@ public class ValidationOutboxService {
     }
 
     @Transactional
-    public void enqueueHistoryValidation(String eventType, History history, Map<String, Object> details) {
+    public ValidationEvent enqueueHistoryValidation(String eventType, History history, Map<String, Object> details) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("eventType", eventType);
         payload.put("historyId", history.getId());
@@ -46,8 +48,9 @@ public class ValidationOutboxService {
         event.setHistoryId(history.getId());
         event.setStatus(ValidationEventStatus.PENDING);
         event.setPayloadJson(toJson(payload));
-        validationEventRepository.save(event);
+        ValidationEvent saved = validationEventRepository.save(event);
         log.info("검증 outbox 이벤트 생성 - eventType={} historyId={}", eventType, history.getId());
+        return saved;
     }
 
     @Transactional
@@ -68,7 +71,7 @@ public class ValidationOutboxService {
     @Transactional
     public void markDone(ValidationEvent event) {
         event.setStatus(ValidationEventStatus.DONE);
-        event.setProcessedAt(LocalDateTime.now());
+        event.setProcessedAt(LocalDateTime.now(SEOUL_ZONE));
         event.setLastError(null);
         validationEventRepository.save(event);
     }

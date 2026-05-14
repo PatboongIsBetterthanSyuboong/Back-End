@@ -38,6 +38,8 @@ public interface AgentDocumentService {
     GenerateCertificateResponseDTO generateCertificate(
             Integer historyId,
             String certificateType,
+            String diagnosisKind,
+            String purpose,
             String username
     );
 
@@ -48,6 +50,9 @@ public interface AgentDocumentService {
             String diseaseCode,
             String prescriptionCode,
             String prescriptionName,
+            String certificateType,
+            String diagnosisKind,
+            String purpose,
             String username
     );
 

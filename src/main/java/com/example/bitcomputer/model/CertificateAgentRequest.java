@@ -45,6 +45,11 @@ public class CertificateAgentRequest {
     @JsonProperty("symptom_detail")
     private String symptomDetail;
 
+    @JsonProperty("diagnosis_kind")
+    private String diagnosisKind;
+
+    private String purpose;
+
     private List<DiseaseInfo> diseases;
 
     private List<DiagnoseInfo> diagnoses;

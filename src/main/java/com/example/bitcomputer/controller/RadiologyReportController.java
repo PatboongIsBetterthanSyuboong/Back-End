@@ -49,6 +49,7 @@ public class RadiologyReportController {
      * @param symptomDetail 증상 상세
      * @param memo 메모
      * @param entryDate 등록일자 (yyyy-MM-dd)
+     * @param view 촬영 방향 (AP 또는 PA)
      * @return AI 분석 결과
      */
     @PostMapping(value = "/upload-and-analyze", consumes = "multipart/form-data")
@@ -59,6 +60,7 @@ public class RadiologyReportController {
             @RequestParam("deptId") int deptId,
             @RequestParam(value = "symptomDetail", required = false) String symptomDetail,
             @RequestParam(value = "memo", required = false) String memo,
+            @RequestParam(value = "view", required = false) String view,
             @RequestParam("entryDate") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate entryDate) {
         
         try {
@@ -98,6 +100,7 @@ public class RadiologyReportController {
             tempRequest.setMemo(memo);
             tempRequest.setEntryDate(java.sql.Date.valueOf(entryDate));
             tempRequest.setDetailImageAddress("temp/temp_" + java.util.UUID.randomUUID().toString()); // 임시 경로
+            tempRequest.setView(normalizeView(view));
             
             // 영상판독 요청 저장하여 radiologyRequestId 받기
             int radiologyRequestId = radiologyReportService.createRadiologyReportRequest(tempRequest);
@@ -116,6 +119,7 @@ public class RadiologyReportController {
             request.setMemo(memo);
             request.setEntryDate(java.sql.Date.valueOf(entryDate));
             request.setDetailImageAddress(imageRelativePath);
+            request.setView(normalizeView(view));
             
             // 5. 이미지 경로 업데이트 (DB 업데이트)
             radiologyReportService.updateImagePath(radiologyRequestId, imageRelativePath);
@@ -139,5 +143,18 @@ public class RadiologyReportController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", errorMessage));
         }
+    }
+
+    private String normalizeView(String view) {
+        if (view == null || view.isBlank()) {
+            return null;
+        }
+        String normalized = view.trim().toUpperCase();
+        if (!"AP".equals(normalized) && !"PA".equals(normalized)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "view는 AP 또는 PA만 가능합니다.");
+        }
+        return normalized;
     }
 }

@@ -48,13 +48,14 @@ public class XrayGraphRagClient {
         this.restTemplate = restTemplate;
     }
 
-    public RadiologyAnalysisResponseDTO infer(Path imagePath) {
+    public RadiologyAnalysisResponseDTO infer(Path imagePath, String view) {
         String url = baseUrl + path;
-        log.info("XrayGraphRAG 호출 시작 - URL: {}, image={}", url, imagePath);
+        String effectiveView = normalizeView(view);
+        log.info("XrayGraphRAG 호출 시작 - URL: {}, image={}, view={}", url, imagePath, effectiveView);
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("image", new FileSystemResource(imagePath));
-        body.add("view", defaultView);
+        body.add("view", effectiveView);
         body.add("topK", topK);
 
         HttpHeaders headers = new HttpHeaders();
@@ -74,6 +75,16 @@ public class XrayGraphRagClient {
         out.setWarning(xray.getWarning());
         out.setPredictedDiseases(toPredictedDiseases(xray.getPredictedDiseases()));
         return out;
+    }
+
+    private String normalizeView(String view) {
+        String candidate = view == null || view.isBlank() ? defaultView : view;
+        candidate = candidate == null || candidate.isBlank() ? "PA" : candidate.trim().toUpperCase();
+        if (!"AP".equals(candidate) && !"PA".equals(candidate)) {
+            log.warn("지원하지 않는 Xray view={} 요청, defaultView={} 사용", view, defaultView);
+            return defaultView == null || defaultView.isBlank() ? "PA" : defaultView.trim().toUpperCase();
+        }
+        return candidate;
     }
 
     private String toAbsoluteUrl(String heatmapPath) {

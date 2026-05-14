@@ -13,7 +13,6 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,17 +21,14 @@ public class HistoryDiseaseServiceImpl implements HistoryDiseaseService {
     private final HistoryDiseaseRepository historyDiseaseRepository;
     private final HistoryRepository historyRepository;
     private final DiseaseRepository diseaseRepository;
-    private final ValidationOutboxService validationOutboxService;
 
     public HistoryDiseaseServiceImpl(
             HistoryDiseaseRepository historyDiseaseRepository,
             HistoryRepository historyRepository,
-            DiseaseRepository diseaseRepository,
-            ValidationOutboxService validationOutboxService) {
+            DiseaseRepository diseaseRepository) {
         this.historyDiseaseRepository = historyDiseaseRepository;
         this.historyRepository = historyRepository;
         this.diseaseRepository = diseaseRepository;
-        this.validationOutboxService = validationOutboxService;
     }
 
     @Override
@@ -73,10 +69,6 @@ public class HistoryDiseaseServiceImpl implements HistoryDiseaseService {
 
         List<HistoryDisease> saved = historyDiseaseRepository.saveAll(toSave);
         history.setSymptomDetail(formatDiseasesForHistory(saved));
-        validationOutboxService.enqueueHistoryValidation(
-                "DISEASE_SAVED",
-                history,
-                Map.of("savedCount", saved.size(), "mode", "replace"));
 
         return saved.stream().map(this::toDto).collect(Collectors.toList());
     }
@@ -111,10 +103,6 @@ public class HistoryDiseaseServiceImpl implements HistoryDiseaseService {
         HistoryDisease saved = historyDiseaseRepository.save(entity);
         List<HistoryDisease> currentDiseases = historyDiseaseRepository.findByHistoryId(historyId);
         history.setSymptomDetail(formatDiseasesForHistory(currentDiseases));
-        validationOutboxService.enqueueHistoryValidation(
-                "DISEASE_SAVED",
-                history,
-                Map.of("savedCount", currentDiseases.size(), "mode", "append"));
 
         return toDto(saved);
     }

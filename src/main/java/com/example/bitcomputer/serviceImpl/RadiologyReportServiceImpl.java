@@ -163,7 +163,7 @@ public class RadiologyReportServiceImpl implements RadiologyReportService {
             return callFlaskRadiology(request);
         }
         Path imagePath = resolveImagePath(request.getDetailImageAddress());
-        RadiologyAnalysisResponseDTO response = xrayGraphRagClient.infer(imagePath);
+        RadiologyAnalysisResponseDTO response = xrayGraphRagClient.infer(imagePath, request.getView());
         boolean positive = response.getPredictedDiseases() != null && !response.getPredictedDiseases().isEmpty();
         return new AnalysisResult(response, positive);
     }

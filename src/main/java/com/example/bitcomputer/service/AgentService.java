@@ -1,12 +1,12 @@
 package com.example.bitcomputer.service;
 
 import com.example.bitcomputer.model.PrescriptionRecommendRequestDTO;
-import com.example.bitcomputer.model.PrescriptionRecommendResponseDTO;
 import com.example.bitcomputer.model.SavePrescriptionFeedbackRequestDTO;
+import com.example.bitcomputer.model.ValidationJobStartResponseDTO;
 
 public interface AgentService {
 
-    PrescriptionRecommendResponseDTO recommendPrescription(PrescriptionRecommendRequestDTO request);
+    ValidationJobStartResponseDTO recommendPrescription(PrescriptionRecommendRequestDTO request);
 
     void savePrescriptionFeedback(SavePrescriptionFeedbackRequestDTO request);
 }

@@ -394,48 +394,22 @@ public class AgentDocumentServiceImpl implements AgentDocumentService {
 
     private String buildDefaultCertificateTemplate(CertificateAgentRequest req) {
         StringBuilder sb = new StringBuilder();
-        sb.append("【 진 단 서 】\n\n");
-        sb.append("환자명: ").append(req.getPatientName()).append("\n");
-        sb.append("성별/나이: ").append(req.getPatientGender()).append(" / ").append(req.getPatientAge()).append("세\n");
-        sb.append("진료일: ").append(req.getEntryDate()).append("\n\n");
-
+        boolean clinicalEstimate = "임상적 추정".equals(req.getDiagnosisKind());
+        String diagnosisPhrase = clinicalEstimate ? "현재 임상 소견상 추정되는 상병에 대해" : "진단된 상병에 대해";
         if (req.getSymptomDetail() != null && !req.getSymptomDetail().isBlank()) {
-            sb.append("주요 증상: ").append(req.getSymptomDetail()).append("\n\n");
+            sb.append(req.getSymptomDetail()).append(" 증상과 관련하여 ");
         }
-
-        if (req.getDiagnosisKind() != null && !req.getDiagnosisKind().isBlank()) {
-            sb.append("진단 구분: ").append(req.getDiagnosisKind()).append("\n");
-        }
-        if (req.getPurpose() != null && !req.getPurpose().isBlank()) {
-            sb.append("용도: ").append(req.getPurpose()).append("\n");
-        }
-        if ((req.getDiagnosisKind() != null && !req.getDiagnosisKind().isBlank())
-                || (req.getPurpose() != null && !req.getPurpose().isBlank())) {
-            sb.append("\n");
-        }
-
-        if (req.getDiseases() != null && !req.getDiseases().isEmpty()) {
-            sb.append("【 상병명 】\n");
-            for (CertificateAgentRequest.DiseaseInfo d : req.getDiseases()) {
-                sb.append(" - [").append(d.getCode()).append("] ").append(d.getName());
-                if (d.getDegree() != null && !d.getDegree().isBlank()) {
-                    sb.append(" (").append(d.getDegree()).append(")");
-                }
-                sb.append("\n");
-            }
-            sb.append("\n");
-        }
-
+        sb.append(diagnosisPhrase).append(" 보존적 치료와 증상 조절을 위한 약물치료를 시행하였습니다. ");
         if (req.getDiagnoses() != null && !req.getDiagnoses().isEmpty()) {
-            sb.append("【 처방 내역 】\n");
-            for (CertificateAgentRequest.DiagnoseInfo d : req.getDiagnoses()) {
-                sb.append(" - [").append(d.getCode()).append("] ").append(d.getName())
-                        .append(" ").append(d.getDose()).append("mg")
-                        .append(" 1일 ").append(d.getTime()).append("회")
-                        .append(" ").append(d.getDays()).append("일분\n");
-            }
+            sb.append("현재 처방은 ");
+            sb.append(req.getDiagnoses().stream()
+                    .map(CertificateAgentRequest.DiagnoseInfo::getName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .collect(Collectors.joining(", ")));
+            sb.append(" 등을 통한 통증 및 염증 조절, 증상 완화를 목적으로 합니다. ");
         }
-
+        sb.append("향후 증상 변화와 치료 반응을 확인하기 위해 재진 및 경과 관찰이 필요하며, 필요 시 추가 검사나 치료 조정이 권고됩니다. ");
+        sb.append("증상이 지속되거나 악화되는 경우 의료진의 재평가를 받아 치료 계획을 조정해야 합니다.");
         return sb.toString();
     }
 

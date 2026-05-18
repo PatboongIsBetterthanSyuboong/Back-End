@@ -1,5 +1,6 @@
 package com.example.bitcomputer.serviceImpl;
 
+import com.example.bitcomputer.Repository.DeptRepository;
 import com.example.bitcomputer.Repository.WaitingRepository;
 import com.example.bitcomputer.entity.Waiting;
 import com.example.bitcomputer.jwt.JwtTokenProvider;
@@ -10,6 +11,8 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -17,10 +20,14 @@ import java.util.stream.Collectors;
 @Service
 public class WaitingServiceImpl implements WaitingService {
     private final WaitingRepository waitingRepository;
+    private final DeptRepository deptRepository;
     private final JwtTokenProvider jwtTokenProvider;
 
-    public WaitingServiceImpl(WaitingRepository waitingRepository, JwtTokenProvider jwtTokenProvider) {
+    public WaitingServiceImpl(WaitingRepository waitingRepository,
+                              DeptRepository deptRepository,
+                              JwtTokenProvider jwtTokenProvider) {
         this.waitingRepository = waitingRepository;
+        this.deptRepository = deptRepository;
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
@@ -29,9 +36,17 @@ public class WaitingServiceImpl implements WaitingService {
     public TokenInfo registerWaiting(WaitingDTO waitingDTO) {
         Waiting waiting = new Waiting();
         waiting.setPatientId(waitingDTO.getPatientId());
-        waiting.setDeptId(waitingDTO.getDeptId() > 0 ? waitingDTO.getDeptId() : 1); // 기본값 1으로 설정
+        waiting.setDeptId(resolveDeptId(waitingDTO.getDeptId()));
         waiting.setSymptom(waitingDTO.getSymptom());
-        waiting.setEntryDate(LocalDateTime.now());
+        waiting.setDepartment(waitingDTO.getDepartment());
+        waiting.setDoctor(waitingDTO.getDoctor());
+        waiting.setVisitTime(waitingDTO.getVisitTime());
+        waiting.setVisitType(waitingDTO.getVisitType());
+        waiting.setVisitReason(waitingDTO.getVisitReason());
+        waiting.setVisitRoute(waitingDTO.getVisitRoute());
+        waiting.setTreatmentType(waitingDTO.getTreatmentType());
+        waiting.setMemo(waitingDTO.getMemo());
+        waiting.setEntryDate(resolveEntryDate(waitingDTO));
         waiting.setState(waitingDTO.getState() != null ? waitingDTO.getState() : "waiting");
 
         // 저장
@@ -165,9 +180,40 @@ public class WaitingServiceImpl implements WaitingService {
         dto.setPatientId(waiting.getPatientId());
         dto.setDeptId(waiting.getDeptId());
         dto.setSymptom(waiting.getSymptom());
+        dto.setDepartment(waiting.getDepartment());
+        dto.setDoctor(waiting.getDoctor());
+        dto.setVisitTime(waiting.getVisitTime());
+        dto.setVisitType(waiting.getVisitType());
+        dto.setVisitReason(waiting.getVisitReason());
+        dto.setVisitRoute(waiting.getVisitRoute());
+        dto.setTreatmentType(waiting.getTreatmentType());
+        dto.setMemo(waiting.getMemo());
         dto.setEntryDate(waiting.getEntryDate());
         dto.setState(waiting.getState());
         return dto;
+    }
+
+    private LocalDateTime resolveEntryDate(WaitingDTO waitingDTO) {
+        LocalDate date = waitingDTO.getEntryDate() != null
+                ? waitingDTO.getEntryDate().toLocalDate()
+                : LocalDate.now();
+        LocalTime time = LocalTime.now();
+        if (waitingDTO.getVisitTime() != null && !waitingDTO.getVisitTime().isBlank()) {
+            try {
+                time = LocalTime.parse(waitingDTO.getVisitTime());
+            } catch (Exception ignored) {
+                // 잘못된 접수시간은 현재 시간으로 저장한다.
+            }
+        }
+        return LocalDateTime.of(date, time);
+    }
+
+    private int resolveDeptId(int requestedDeptId) {
+        int deptId = requestedDeptId > 0 ? requestedDeptId : 1;
+        if (deptRepository.existsById(deptId)) {
+            return deptId;
+        }
+        return deptRepository.existsById(1) ? 1 : deptId;
     }
 
 

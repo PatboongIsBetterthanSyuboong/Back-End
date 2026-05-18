@@ -25,6 +25,30 @@ public class Waiting {
     
     @Column(name = "symptom", columnDefinition = "TEXT")
     private String symptom;
+
+    @Column(name = "department")
+    private String department;
+
+    @Column(name = "doctor")
+    private String doctor;
+
+    @Column(name = "visit_time")
+    private String visitTime;
+
+    @Column(name = "visit_type")
+    private String visitType;
+
+    @Column(name = "visit_reason", columnDefinition = "TEXT")
+    private String visitReason;
+
+    @Column(name = "visit_route")
+    private String visitRoute;
+
+    @Column(name = "treatment_type")
+    private String treatmentType;
+
+    @Column(name = "memo", columnDefinition = "TEXT")
+    private String memo;
     
     @Column(name = "entry_date", nullable = false)
     private LocalDateTime entryDate;

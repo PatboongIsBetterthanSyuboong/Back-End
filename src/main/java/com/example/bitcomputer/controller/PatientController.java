@@ -75,6 +75,22 @@ public class PatientController {
         return ResponseEntity.ok(patients);
     }
 
+    @GetMapping("/doctors")
+    public ResponseEntity<List<Map<String, Object>>> getDoctors() {
+        List<Map<String, Object>> doctors = employeeRepository.findAll().stream()
+                .filter(employee -> employee.getRole() == Role.DOCTOR)
+                .map(employee -> {
+                    Map<String, Object> payload = new LinkedHashMap<>();
+                    payload.put("id", employee.getId());
+                    payload.put("name", employee.getName());
+                    payload.put("deptId", employee.getDeptId());
+                    payload.put("username", employee.getUsername());
+                    return payload;
+                })
+                .toList();
+        return ResponseEntity.ok(doctors);
+    }
+
     @GetMapping("/get_role")
     public ResponseEntity<Role> getRole(@RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {

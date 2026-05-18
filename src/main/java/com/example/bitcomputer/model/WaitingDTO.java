@@ -12,6 +12,14 @@ public class WaitingDTO {
     int patientId;
     int deptId;
     String symptom;
+    String department;
+    String doctor;
+    String visitTime;
+    String visitType;
+    String visitReason;
+    String visitRoute;
+    String treatmentType;
+    String memo;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime entryDate;
